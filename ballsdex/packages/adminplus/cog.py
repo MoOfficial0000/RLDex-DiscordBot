@@ -299,7 +299,7 @@ class Adminplus(commands.GroupCog):
         paintarray = ["Mythical","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
         if special != None:
             if str(special) not in paintarray:
-                return await interaction.response.send_message("You do not have permission to give this special")
+                return await interaction.response.send_message("You do not have permission to give this special",ephemeral=True)
         await interaction.response.defer(ephemeral=True, thinking=True)
 
         player, created = await Player.get_or_create(discord_id=user.id)
