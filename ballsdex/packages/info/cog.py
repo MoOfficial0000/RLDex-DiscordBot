@@ -150,6 +150,10 @@ class Info(commands.Cog):
         for cog in self.bot.cogs.values():
             if cog.qualified_name == "Admin":
                 continue
+            elif cog.qualified_name == "Adminplus":
+                continue
+            elif cog.qualified_name == "Boss":
+                continue
             content = ""
             for app_command in cog.walk_app_commands():
                 translated = await self.bot.tree.translator.translate(  # type: ignore
