@@ -217,11 +217,11 @@ class Adminplus(commands.GroupCog):
         if owned_countryballs:
             # Getting the list of emoji IDs from the IDs of the owned countryballs
             fill_fields(
-                f"Owned {settings.plural_collectible_name}",
+                f"Existing {settings.plural_collectible_name}",
                 set(bot_countryballs[x] for x in owned_countryballs),
             )
         else:
-            entries.append((f"__**Owned {settings.plural_collectible_name}**__", "Nothing yet."))
+            entries.append((f"__**Existing {settings.plural_collectible_name}**__", "Nothing yet."))
 
         if missing := set(y for x, y in bot_countryballs.items() if x not in owned_countryballs):
             fill_fields(f"Missing {settings.plural_collectible_name}", missing)
