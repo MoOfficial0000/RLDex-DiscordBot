@@ -34,16 +34,10 @@ class gaPacks(commands.Cog):
         """
         Get the link to the bot-vote Website.
         """
-        if settings.bot_name == "dragonballdex":
-            await interaction.response.send_message(
-                    f"You can vote for Dragon Ball Dex here: https://top.gg/bot/1293338035500351538\nOnce you have voted, you can make a ticket and claim a FREE CARD on our [Discord Server!]({settings.discord_invite})",
-                    ephemeral=True,
-                )
-        else:
-            await interaction.response.send_message(
-                    f"You can vote for Rocket League Dex here: https://top.gg/bot/1237889057330303057\nOnce you have voted, you can make a ticket and claim a FREE CARD on our [Discord Server!]({settings.discord_invite})",
-                    ephemeral=True,
-                )
+        await interaction.response.send_message(
+                f"You can vote for {settings.bot_name} here: https://top.gg/user/578344716639604736\nOnce you have voted, you can make a ticket and claim a FREE CARD on our [Discord Server!]({settings.discord_invite})",
+                ephemeral=True,
+            )
         return
     
     @app_commands.command()
