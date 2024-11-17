@@ -37,6 +37,10 @@ from ballsdex.core.utils.transformers import (
     EconomyTransform,
     RegimeTransform,
     SpecialTransform,
+    BallEnabledTransform,
+    BallInstanceTransform,
+    SpecialEnabledTransform,
+    TradeCommandType,
 )
 from ballsdex.packages.countryballs.countryball import CountryBall
 from ballsdex.packages.trade.display import TradeViewFormat, fill_trade_embed_fields
@@ -114,6 +118,134 @@ class Adminplus(commands.GroupCog):
         await interaction.response.send_message(
             f"The bot's privacy policy has been set to **{policy.name}**.", ephemeral=True
         )
+
+    @app_commands.command()
+    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    async def completion(
+            self,
+            interaction: discord.Interaction["BallsDexBot"],
+            user: discord.User | None = None,
+            special: SpecialEnabledTransform | None = None,
+            shiny: bool | None = None,
+    ):
+        """
+        Show completion of the BallsDex.
+
+        Parameters
+        ----------
+        user: discord.User
+            The user whose completion you want to view, if not yours.
+        special: Special
+            The special you want to see the completion of
+        shiny: bool
+            Whether you want to see the completion of shiny countryballs
+        """
+        user_obj = user or interaction.user
+        await interaction.response.defer(thinking=True)
+        extra_text = "shiny " if shiny else "" + f"{special.name} " if special else ""
+        if user is not None:
+            try:
+                player = await Player.get(discord_id=user_obj.id)
+            except DoesNotExist:
+                await interaction.followup.send(
+                    f"There are no "
+                    f"{extra_text}{settings.plural_collectible_name} yet."
+                )
+                return
+
+            if await inventory_privacy(self.bot, interaction, player) is False:
+                return
+        # Filter disabled balls, they do not count towards progression
+        # Only ID and emoji is interesting for us
+        bot_countryballs = {x: y.emoji_id for x, y in balls.items() if y.enabled}
+
+        # Set of ball IDs owned by the player
+        filters = {"ball__enabled": True}
+        if special:
+            filters["special"] = special
+            bot_countryballs = {
+                x: y.emoji_id
+                for x, y in balls.items()
+                if y.enabled and y.created_at < special.end_date
+            }
+        if not bot_countryballs:
+            await interaction.followup.send(
+                f"There are no {extra_text}{settings.plural_collectible_name}"
+                " registered on this bot yet.",
+                ephemeral=True,
+            )
+            return
+
+        if shiny is not None:
+            filters["shiny"] = shiny
+        owned_countryballs = set(
+            x[0]
+            for x in await BallInstance.filter(**filters)
+            .distinct()  # Do not query everything
+            .values_list("ball_id")
+        )
+
+        entries: list[tuple[str, str]] = []
+
+        def fill_fields(title: str, emoji_ids: set[int]):
+            # check if we need to add "(continued)" to the field name
+            first_field_added = False
+            buffer = ""
+
+            for emoji_id in emoji_ids:
+                emoji = self.bot.get_emoji(emoji_id)
+                if not emoji:
+                    continue
+
+                text = f"{emoji} "
+                if len(buffer) + len(text) > 1024:
+                    # hitting embed limits, adding an intermediate field
+                    if first_field_added:
+                        entries.append(("\u200B", buffer))
+                    else:
+                        entries.append((f"__**{title}**__", buffer))
+                        first_field_added = True
+                    buffer = ""
+                buffer += text
+
+            if buffer:  # add what's remaining
+                if first_field_added:
+                    entries.append(("\u200B", buffer))
+                else:
+                    entries.append((f"__**{title}**__", buffer))
+
+        if owned_countryballs:
+            # Getting the list of emoji IDs from the IDs of the owned countryballs
+            fill_fields(
+                f"Owned {settings.plural_collectible_name}",
+                set(bot_countryballs[x] for x in owned_countryballs),
+            )
+        else:
+            entries.append((f"__**Owned {settings.plural_collectible_name}**__", "Nothing yet."))
+
+        if missing := set(y for x, y in bot_countryballs.items() if x not in owned_countryballs):
+            fill_fields(f"Missing {settings.plural_collectible_name}", missing)
+        else:
+            entries.append(
+                (
+                    f"__**:tada: No missing {settings.plural_collectible_name}, "
+                    "congratulations! :tada:**__",
+                    "\u200B",
+                )
+            )  # force empty field value
+
+        source = FieldPageSource(entries, per_page=5, inline=False, clear_description=False)
+        special_str = f" ({special.name})" if special else ""
+        shiny_str = " shiny" if shiny else ""
+        source.embed.description = (
+            f"{settings.bot_name}{special_str}{shiny_str} progression: "
+            f"**{round(len(owned_countryballs) / len(bot_countryballs) * 100, 1)}%**"
+        )
+        source.embed.colour = discord.Colour.blurple()
+        source.embed.set_author(name=(settings.bot_name), icon_url=self.bot.user.avatar.url)
+
+        pages = Pages(source=source, interaction=interaction, compact=True)
+        await pages.start()
 
     @app_commands.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
