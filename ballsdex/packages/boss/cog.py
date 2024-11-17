@@ -99,7 +99,7 @@ class Boss(commands.GroupCog):
         extension = ball.collection_card.split(".")[-1]
         file_location = "." + ball.collection_card
         file_name = f"nt_{generate_random_name()}.{extension}"
-        await interaction.response.send_message((f"# The boss battle has begun!\n-# HP: {self.bossHP} <@&1248729066249519336>"),file=discord.File(file_location, filename=file_name),)
+        await interaction.response.send_message((f"# The boss battle has begun!\n-# HP: {self.bossHP} Credits: nobodyboy (Card Art)"),file=discord.File(file_location, filename=file_name),)
         await interaction.followup.send("Use `/boss join` to join the battle!")
         if ball != None:
             self.boss_enabled = True
