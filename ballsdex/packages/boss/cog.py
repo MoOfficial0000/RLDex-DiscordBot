@@ -284,7 +284,7 @@ class Boss(commands.GroupCog):
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+2000 ATK and {ballhealth}+2000 HP"
             ballhealth += 2000
             ballattack += 2000
-        elif "⚔️" in messageforuser or "⚔" in messageforuser or "🏆" in messageforuser or 🇺🇸 in messageforuser:
+        elif "⚔️" in messageforuser or "⚔" in messageforuser or "🏆" in messageforuser or "🇺🇸" in messageforuser:
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+6000 ATK and {ballhealth}+6000 HP"
             ballhealth += 6000
             ballattack += 6000
