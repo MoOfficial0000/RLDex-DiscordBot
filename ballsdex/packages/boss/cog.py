@@ -239,6 +239,11 @@ class Boss(commands.GroupCog):
             return await interaction.response.send_message(
                 "You have not Joined the Boss Battle, or you have died!", ephemeral=True
             )
+        if not ball.is_tradeable:
+            await interaction.response.send_message(
+                f"You cannot use this {settings.collectible_name}.", ephemeral=True
+            )
+            return
         if ball in self.balls:
             return await interaction.response.send_message(
                 f"You cannot select the same {settings.collectible_name} twice", ephemeral=True
