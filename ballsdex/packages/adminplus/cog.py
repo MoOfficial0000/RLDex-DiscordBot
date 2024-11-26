@@ -383,6 +383,8 @@ class Adminplus(commands.GroupCog):
         # the transformer triggered a response, meaning user tried an incorrect input
         if interaction.response.is_done():
             return
+        if ball.tradeable == False:
+            return await interaction.response.send_message(f"You do not have permission to spawn this {settings.collectible_name}", ephemeral=True)
         await interaction.response.defer(ephemeral=True, thinking=True)
         if not ball:
             countryball = await CountryBall.get_random()
@@ -428,6 +430,8 @@ class Adminplus(commands.GroupCog):
         # the transformers triggered a response, meaning user tried an incorrect input
         if interaction.response.is_done():
             return
+        if countryball.tradeable == False:
+            return await interaction.response.send_message(f"You do not have permission to give this {settings.collectible_name}", ephemeral=True)
         paintarray = ["Mythical","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
         if special != None:
             if str(special) not in paintarray:
