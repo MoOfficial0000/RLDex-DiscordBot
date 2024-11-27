@@ -124,7 +124,6 @@ class Adminplus(commands.GroupCog):
     async def completion(
             self,
             interaction: discord.Interaction["BallsDexBot"],
-            user: discord.User | None = None,
             special: SpecialEnabledTransform | None = None,
             shiny: bool | None = None,
     ):
@@ -140,7 +139,7 @@ class Adminplus(commands.GroupCog):
         shiny: bool
             Whether you want to see the completion of shiny countryballs
         """
-        user_obj = user or interaction.user
+        user = None
         await interaction.response.defer(thinking=True)
         extra_text = "shiny " if shiny else "" + f"{special.name} " if special else ""
         if user is not None:
