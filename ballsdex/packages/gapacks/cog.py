@@ -112,6 +112,11 @@ class gaPacks(commands.Cog):
             ephemeral=True,
         )
 
+        if settings.bot_name == "rocketleaguedex":
+            await interaction.followup.send(f"```c\nPaint Rarities:\nTop 1. Mythical 🌌\nTop 2. Shiny ✨\nTop 3. Gold 🟨\nTop 3. Titanium White ⬜\nTop 5. Black ⬛\nTop 6. Cobalt 🟦\nTop 6. Crimson 🟥\nTop 6. Forest Green 🟩\nTop 6. Saffron 💛\nTop 6. Sky Blue 🩵\nTop 6. Pink 🩷\nTop 6. Purple 🟪\nTop 6. Lime 💚\nTop 6. Orange 🟧\nTop 6. Grey 🩶\nTop 6. Burnt Sienna 🟫\nTop 17. Unpainted ```",
+            ephemeral=True,
+        )
+
     @app_commands.command()
     @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
     async def count_list(
@@ -198,8 +203,3 @@ class gaPacks(commands.Cog):
             await pages.start(
                 ephemeral=True,
             )
-
-        if settings.bot_name == "rocketleaguedex":
-            await interaction.followup.send(f"```c\nPaint Rarities:\nTop 1. Mythical 🌌\nTop 2. Shiny ✨\nTop 3. Gold 🟨\nTop 3. Titanium White ⬜\nTop 5. Black ⬛\nTop 6. Cobalt 🟦\nTop 6. Crimson 🟥\nTop 6. Forest Green 🟩\nTop 6. Saffron 💛\nTop 6. Sky Blue 🩵\nTop 6. Pink 🩷\nTop 6. Purple 🟪\nTop 6. Lime 💚\nTop 6. Orange 🟧\nTop 6. Grey 🩶\nTop 6. Burnt Sienna 🟫\nTop 17. Unpainted ```",
-            ephemeral=True,
-        )
