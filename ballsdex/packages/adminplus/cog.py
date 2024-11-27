@@ -516,3 +516,100 @@ class Adminplus(commands.GroupCog):
                 f"There are {balls} {special_str}{shiny_str}"
                 f"{country}{settings.collectible_name}{plural}."
             )
+
+    @balls.command(name="count_list")
+    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    async def count_list(
+        self,
+        interaction: discord.Interaction,
+        user: discord.User | None = None,
+        shiny: bool | None = None,
+        special: SpecialTransform | None = None,):
+        # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
+        """
+        Counts every character - made by GamingadlerHD and Mo Official
+
+        Parameters
+        ----------
+        user: discord.User
+            The user you want to count the balls of.
+        shiny: bool
+        special: Special
+        """
+        # Filter enabled collectibles
+        enabled_collectibles = [x for x in balls.values() if x.enabled]
+
+        if not enabled_collectibles:
+            await interaction.response.send_message(
+                f"There are no collectibles registered in {settings.bot_name} yet.",
+                ephemeral=True,
+            )
+            return
+
+        # Sort collectibles by rarity in ascending order
+        sorted_collectibles = sorted(enabled_collectibles, key=lambda x: x.rarity)
+
+        # Sort collectibles by rarity in ascending order
+
+        entries = []
+        nothingcheck = ""
+
+        for collectible in sorted_collectibles:
+            name = f"{collectible.country}"
+            emoji = self.bot.get_emoji(collectible.emoji_id)
+
+            if emoji:
+                emote = str(emoji)
+            else:
+                emote = "N/A"
+
+            filters = {}
+            filters["ball"] = collectible
+            if shiny is not None:
+                filters["shiny"] = shiny
+            if special:
+                filters["special"] = special
+            if user:
+                filters["player__discord_id"] = user.id
+
+            count = await BallInstance.filter(**filters)
+            countNum = len(count)
+            # sorted_collectibles = sorted(enabled_collectibles.values(), key=lambda x: x.rarity)
+            # if you want the Rarity to only show full numbers like 1 or 12 use the code part here:
+            # rarity = int(collectible.rarity)
+            # otherwise you want to display numbers like 1.5, 5.3, 76.9 use the normal part.
+            if countNum != 0:
+                entry = (name, f"{emote} Count: {countNum}")
+                entries.append(entry)
+                nothingcheck = "something lol"
+
+        # This is the number of countryballs who are displayed at one page,
+        # you can change this, but keep in mind: discord has an embed size limit.
+        per_page = 5
+        special_str = f" ({special.name})" if special else ""
+        shiny_str = " shiny" if shiny else ""
+        if nothingcheck == "":
+            if user:
+                return await interaction.response.send_message(
+                    f"{user} has no {special_str}{shiny_str} {settings.plural_collectible_name} yet.",
+                    ephemeral=True,
+                )
+            else:
+                return await interaction.response.send_message(
+                    f"There are no {special_str}{shiny_str} {settings.plural_collectible_name} yet.",
+                    ephemeral=True,
+                )
+        else:
+            source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
+            source.embed.description = (
+                f"__**{settings.bot_name}{special_str}{shiny_str} count**__"
+            )
+            source.embed.colour = discord.Colour.blurple()
+            source.embed.set_author(
+                name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
+            )
+
+            pages = Pages(source=source, interaction=interaction, compact=True)
+            await pages.start(
+                ephemeral=True,
+            )
