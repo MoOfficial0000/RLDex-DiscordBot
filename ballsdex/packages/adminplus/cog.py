@@ -517,7 +517,7 @@ class Adminplus(commands.GroupCog):
                 f"{country}{settings.collectible_name}{plural}."
             )
 
-    @balls.command(name="count_list")
+    @app_commands.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def count_list(
         self,
