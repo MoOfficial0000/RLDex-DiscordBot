@@ -209,15 +209,16 @@ class Boss(commands.GroupCog):
                 )
         self.currentvalue = ("")
 
-    @ app_commands.command()
-    @ app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
-    async def peek(self, interaction: discord.Interaction):
+    @app_commands.command()
+    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    async def stats(self, interaction: discord.Interaction):
         """
         See current stats of the boss
         """
-        return await interaction.response.send_message(
-            f"Boss:{self.bossball}\nCurrentValue:{self.currentvalue}\nUsers:{self.users}\n\nUsersDamage:{self.usersdamage}\n\nBalls:{self.balls}\n\nUsersInRound:{self.usersinround}", ephemeral=True
-        )
+        with open("stats.txt","w") as file:
+            file.write(f"Boss:{self.bossball}\nCurrentValue:{self.currentvalue}\nUsers:{self.users}\n\nUsersDamage:{self.usersdamage}\n\nBalls:{self.balls}\n\nUsersInRound:{self.usersinround}")
+        with open("stats.txt","rb") as file:
+            return await interaction.response.send_message(file=discord.File(file,"stats.txt"), ephemeral=True)
 
 
 
