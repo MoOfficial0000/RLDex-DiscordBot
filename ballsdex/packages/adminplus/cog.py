@@ -112,7 +112,11 @@ class Adminplus(commands.GroupCog):
                 "I need the `members` intent to use this policy.", ephemeral=True
             )
             return
-        player, _ = await PlayerModel.get_or_create(discord_id=1237889057330303057)
+        if settings.bot_name == "dragonballdex":
+            botuserid = 1293338035500351538
+        else:
+            botuserid = 1237889057330303057
+        player, _ = await PlayerModel.get_or_create(discord_id=botuserid)
         player.privacy_policy = policy
         await player.save()
         await interaction.response.send_message(
