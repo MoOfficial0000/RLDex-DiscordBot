@@ -252,23 +252,42 @@ class Boss(commands.GroupCog):
             return
         self.balls.append(ball)
         self.usersinround.append([int(interaction.user.id),self.round])
-        if ball.attack > 14000:
-            ballattack = 14000
+        if settings.bot_name == "dragonballdex":
+            maxvalue = 180000
+            shinyvalue = 20000
+            mythicalvalue = 50000
+            bossvalue = 30000
+            eventvalue1 = 10000
+            eventvalue2 = 7000
+        else:
+            maxvalue = 14000
+            shinyvalue = 5000
+            mythicalvalue = 12000
+            bossvalue = 6000
+            eventvalue1 = 3000
+            eventvalue2 = 2000
+        if ball.attack > maxvalue:
+            ballattack = maxvalue
+        elif ball.attack < 0:
+            ballattack = 0
         else:
             ballattack = ball.attack
-        if ball.health > 14000:
-            ballhealth = 14000
+        if ball.health > maxvalue:
+            ballhealth = maxvalue
+        elif ball.health < 0:
+            ballhealth = 0
         else:
             ballhealth = ball.health
+
         messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack} ATK and {ballhealth} HP"
         if "✨" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+5000 ATK and {ballhealth}+5000 HP"
-            ballhealth += 5000
-            ballattack += 5000
+            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{shinyvalue} ATK and {ballhealth}+{shinyvalue} HP"
+            ballhealth += shinyvalue
+            ballattack += shinyvalue
         elif "🌌" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+12000 ATK and {ballhealth}+12000 HP"
-            ballhealth += 12000
-            ballattack += 12000
+            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{mythicalvalue} ATK and {ballhealth}+{mythicalvalue} HP"
+            ballhealth += mythicalvalue
+            ballattack += mythicalvalue
         elif "🟨" in messageforuser or "⬜" in messageforuser:
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+1500 ATK and {ballhealth}+1500 HP"
             ballhealth += 1500
@@ -281,21 +300,21 @@ class Boss(commands.GroupCog):
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+1000 ATK and {ballhealth}+1000 HP"
             ballhealth += 1000
             ballattack += 1000
-        elif "🚀" in messageforuser or "🎩" in messageforuser or "🐑" in messageforuser or "🔮" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+3000 ATK and {ballhealth}+3000 HP"
-            ballhealth += 3000
-            ballattack += 3000
+        elif "🚀" in messageforuser or "🎩" in messageforuser or "🐑" in messageforuser or "🔮" in messageforuser or "🇺🇸" in messageforuser :
+            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{eventvalue1} ATK and {ballhealth}+{eventvalue1} HP"
+            ballhealth += eventvalue1
+            ballattack += eventvalue1
         elif "☀" in messageforuser or "☀️" in messageforuser or "🎃" in messageforuser or "🔵" in messageforuser or "🔴" in messageforuser or "🐉" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+2000 ATK and {ballhealth}+2000 HP"
-            ballhealth += 2000
-            ballattack += 2000
-        elif "⚔️" in messageforuser or "⚔" in messageforuser or "🏆" in messageforuser or "🇺🇸" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+6000 ATK and {ballhealth}+6000 HP"
-            ballhealth += 6000
-            ballattack += 6000
+            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{eventvalue2} ATK and {ballhealth}+{eventvalue2} HP"
+            ballhealth += eventvalue2
+            ballattack += eventvalue2
+        elif "⚔️" in messageforuser or "⚔" in messageforuser or "🏆" in messageforuser:
+            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{bossvalue} ATK and {ballhealth}+{bossvalue} HP"
+            ballhealth += bossvalue
+            ballattack += bossvalue
         else:
             pass
-
+            
         if not self.attack:
             self.bossHP -= ballattack
             self.usersdamage.append([int(interaction.user.id),ballattack])
