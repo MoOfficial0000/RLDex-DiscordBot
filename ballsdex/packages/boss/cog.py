@@ -84,7 +84,9 @@ class Boss(commands.GroupCog):
         self.bossball = None
         self.bosswild = None
 
-    @app_commands.command()
+    bossadmin = app_commands.Group(name="admin", description="admin commands for boss")
+
+    @bossadmin.command(name="start")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def start(self, interaction: discord.Interaction, ball: BallTransform, hp_amount: int | None = None,):
         """
@@ -110,7 +112,7 @@ class Boss(commands.GroupCog):
             file_name = f"nt_{generate_random_name()}.{extension}"
             self.bosswild = file=discord.File(file_location, filename=file_name)
 
-    @app_commands.command()
+    @bossadmin.command(name="attack")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def attack(self, interaction: discord.Interaction, attack_amount: int | None = None):
         """
@@ -140,7 +142,7 @@ class Boss(commands.GroupCog):
         self.attack = True
         self.bossattack = (attack_amount if attack_amount is not None else random.randrange(0, 10000, 500))
 
-    @app_commands.command()
+    @bossadmin.command(name="defend")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def defend(self, interaction: discord.Interaction):
         """
@@ -171,7 +173,7 @@ class Boss(commands.GroupCog):
         self.attack = False
 
 
-    @app_commands.command()
+    @bossadmin.command(name="end_round")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def end_round(self, interaction: discord.Interaction):
         """
@@ -209,7 +211,7 @@ class Boss(commands.GroupCog):
                 )
         self.currentvalue = ("")
 
-    @app_commands.command()
+    @bossadmin.command(name="stats")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def stats(self, interaction: discord.Interaction):
         """
@@ -331,7 +333,7 @@ class Boss(commands.GroupCog):
             messageforuser, ephemeral=True
         )
 
-    @app_commands.command()
+    @bossadmin.command(name="conclude")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def conclude(self, interaction: discord.Interaction, do_not_reward: bool | None = False,):
         """
