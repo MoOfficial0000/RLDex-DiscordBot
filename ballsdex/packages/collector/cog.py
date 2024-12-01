@@ -81,7 +81,7 @@ class Collector(commands.GroupCog):
         filters["player__discord_id"] = interaction.user.id
         balls = await BallInstance.filter(**filters).count()
         if settings.bot_name == "dragonballdex":
-            collector_number = int(round((((390*countryball.rarity) + 3245)/116),-1))
+            collector_number = int(round((((500*countryball.rarity) + 3245)/116),-1))
         else:
             collector_number = int(round((((235 * countryball.rarity) + 3245) / 116), -1))
         country = f"{countryball.country}"
@@ -136,7 +136,7 @@ class Collector(commands.GroupCog):
             # rarity = int(collectible.rarity)
             # otherwise you want to display numbers like 1.5, 5.3, 76.9 use the normal part.
             if settings.bot_name == "dragonballdex":
-                rarity1 = int(round((((390 * collectible.rarity) + 3245) / 116), -1))
+                rarity1 = int(round((((500 * collectible.rarity) + 3245) / 116), -1))
             else:
                 rarity1 = int(round((((235 * collectible.rarity) + 3245) / 116), -1)))
 
