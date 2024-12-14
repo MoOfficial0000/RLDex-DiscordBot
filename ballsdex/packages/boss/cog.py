@@ -240,7 +240,7 @@ class Boss(commands.GroupCog):
             return await interaction.response.send_message(f"It is not yet time to select an {settings.collectible_name}", ephemeral=True)
         if interaction.user.id not in self.users:
             return await interaction.response.send_message(
-                "You have not Joined the Boss Battle, or you have died!", ephemeral=True
+                "You did not join, or you're dead/disqualified.", ephemeral=True
             )
         if not ball.is_tradeable:
             await interaction.response.send_message(
