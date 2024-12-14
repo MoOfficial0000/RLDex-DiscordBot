@@ -11,10 +11,9 @@ from typing import TYPE_CHECKING, Optional, cast
 from discord.ui import Button, View
 
 from ballsdex.settings import settings
-from ballsdex.core.utils.transformers import BallInstanceTransform
+from ballsdex.core.utils.transformers import BallInstanceTransform, SpecialEnabledTransform
 from ballsdex.core.utils.transformers import BallEnabledTransform
 from ballsdex.core.utils.transformers import SpecialTransform, BallTransform
-from ballsdex.core.utils.transformers import SpecialEnabledTransform
 from ballsdex.core.utils.paginator import FieldPageSource, Pages
 from ballsdex.core.utils.logging import log_action
 from ballsdex.settings import settings
@@ -56,7 +55,7 @@ from ballsdex.core.models import (
 #    Choose a countryball to be the boss (required). Choose HP (Optional, Defaulted at 40000)
 # 2. Players can join using /boss join command.
 # 3. Start a round using /boss defend or /boss attack.(ADMINS ONLY)
-#    With /boss attack you can choose how much attack the boss deals (Required)
+#    With /boss attack you can choose how much attack the boss deals (Optional, Defaulted to RNG from 0 to 2000)
 # 4. Players now choose an item to use against the boss using /boss select
 # 5. /boss end_round ends the current round and displays user permformance about the round (ADMIN ONLY)
 # 6. Step 3-5 is repeated until the boss' HP runs out, but you can end early with Step 7.
@@ -96,7 +95,7 @@ class Boss(commands.GroupCog):
         """
         if self.boss_enabled == True:
             return await interaction.response.send_message(f"There is already an ongoing boss battle", ephemeral=True)
-        self. = hp_amount
+        self.bossHP = hp_amount
         def generate_random_name():
             source = string.ascii_uppercase + string.ascii_lowercase + string.ascii_letters
             return "".join(random.choices(source, k=15))
@@ -202,10 +201,11 @@ class Boss(commands.GroupCog):
         else:
             snapshotusers = self.users.copy()
             for user in snapshotusers:
+                user_id = user
+                user = await self.bot.fetch_user(int(user))
                 if str(user) not in self.currentvalue:
-                    user = await self.bot.fetch_user(int(user))
-                    self.currentvalue += ("<@"+str(user)+"> has not picked on time and died!\n")
-                    self.users.remove(user)
+                    self.currentvalue += (str(user) + " has not selected on time and died!\n")
+                    self.users.remove(user_id)
             with open("roundstats.txt","w") as file:
                 file.write(f"{self.currentvalue}")
             if len(self.users) == 0:
@@ -389,13 +389,13 @@ class Boss(commands.GroupCog):
         if not self.attack:
             self.bossHP -= ballattack
             self.usersdamage.append([int(interaction.user.id),ballattack])
-            self.currentvalue += ("<@"+str(interaction.user.id)+">'s "+str(ball.description(short=True, include_emoji=True, bot=self.bot))+" has dealt "+(str(ballattack))+" damage!\n")
+            self.currentvalue += (str(interaction.user)+"'s "+str(ball.description(short=True, bot=self.bot))+" has dealt "+(str(ballattack))+" damage!\n")
         else:
             if self.bossattack >= ballhealth:
                 self.users.remove(interaction.user.id)
-                self.currentvalue += ("<@"+str(interaction.user.id)+">'s "+str(ball.description(short=True, include_emoji=True, bot=self.bot))+" had "+(str(ballhealth))+"HP and ***died!***\n")
+                self.currentvalue += (str(interaction.user)+"'s "+str(ball.description(short=True, bot=self.bot))+" had "+(str(ballhealth))+"HP and died!\n")
             else:
-                self.currentvalue += ("<@" + str(interaction.user.id) + ">'s " + str(ball.description(short=True, include_emoji=True, bot=self.bot)) + " had " + (str(ballhealth)) + "HP and ***survived!***\n")
+                self.currentvalue += (str(interaction.user)+"'s "+str(ball.description(short=True, bot=self.bot)) + " had " + (str(ballhealth)) + "HP and survived!\n")
 
         await interaction.response.send_message(
             messageforuser, ephemeral=True
@@ -407,7 +407,14 @@ class Boss(commands.GroupCog):
 
     @bossadmin.command(name="conclude")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
-    async def conclude(self, interaction: discord.Interaction, do_not_reward: bool | None = False,):
+    @app_commands.choices(
+        winner=[
+            app_commands.Choice(name="Random", value="RNG"),
+            app_commands.Choice(name="Most Damage", value="DMG"),
+            app_commands.Choice(name="No Winner", value="None"),
+        ]
+    )
+    async def conclude(self, interaction: discord.Interaction, winner: str):
         """
         Finish the boss, conclude the Winner
         """
@@ -429,10 +436,14 @@ class Boss(commands.GroupCog):
                 totalnum.append([tempvalue, temp])
         bosswinner = 0
         highest = 0
-        for k in range(len(totalnum)):
-            if totalnum[k][1] > highest:
-                highest = totalnum[k][1]
-                bosswinner = totalnum[k][0]
+        if winner == "DMG":
+            for k in range(len(totalnum)):
+                if totalnum[k][1] > highest:
+                    highest = totalnum[k][1]
+                    bosswinner = totalnum[k][0]
+        else:
+            if len(totalnum) != 0:
+                bosswinner = totalnum[random.randint(0,len(totalnum)-1)][0]
         if bosswinner == 0:
             self.round = 0
             self.balls = []
@@ -448,7 +459,7 @@ class Boss(commands.GroupCog):
             self.bosswild = None
             self.disqualified = []
             return await interaction.response.send_message(f"BOSS HAS CONCLUDED\nThe boss has won the Boss Battle!")
-        if do_not_reward == False:
+        if winner != "None":
             await interaction.response.defer(thinking=True)
             player, created = await Player.get_or_create(discord_id=bosswinner)
             special = special = [x for x in specials.values() if x.name == "Boss"][0]
@@ -473,7 +484,7 @@ class Boss(commands.GroupCog):
                 self.bot,
             )
         else:
-            await interaction.response.send_message(f"BOSS HAS CONCLUDED.\n{total}\n<@{bosswinner}> has won the Boss Battle!\n\n")
+            await interaction.response.send_message(f"BOSS HAS CONCLUDED.\nThe boss has been defeated!")
         self.round = 0
         self.balls = []
         self.users = []
