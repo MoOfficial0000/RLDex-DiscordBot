@@ -55,7 +55,7 @@ from ballsdex.core.models import (
 #    Choose a countryball to be the boss (required). Choose HP (Optional, Defaulted at 40000)
 # 2. Players can join using /boss join command.
 # 3. Start a round using /boss defend or /boss attack.(ADMINS ONLY)
-#    With /boss attack you can choose how much attack the boss deals (Optional, Defaulted to RNG from 0 to 2000)
+#    With /boss attack you can choose how much attack the boss deals (Required)
 # 4. Players now choose an item to use against the boss using /boss select
 # 5. /boss end_round ends the current round and displays user permformance about the round (ADMIN ONLY)
 # 6. Step 3-5 is repeated until the boss' HP runs out, but you can end early with Step 7.
@@ -76,7 +76,7 @@ class Boss(commands.GroupCog):
         self.usersdamage = []
         self.usersinround = []
         self.currentvalue = ("")
-        self.bossHP = 40000
+        self.bossHP = 0
         self.picking = False
         self.round = 0
         self.attack = False
@@ -88,13 +88,13 @@ class Boss(commands.GroupCog):
 
     @bossadmin.command(name="start")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
-    async def start(self, interaction: discord.Interaction, ball: BallTransform, hp_amount: int | None = None,):
+    async def start(self, interaction: discord.Interaction, ball: BallTransform, hp_amount):
         """
         Start the boss
         """
         if self.boss_enabled == True:
             return await interaction.response.send_message(f"There is already an ongoing boss battle", ephemeral=True)
-        self.bossHP = (hp_amount if hp_amount is not None else 40000)
+        self. = hp_amount
         def generate_random_name():
             source = string.ascii_uppercase + string.ascii_lowercase + string.ascii_letters
             return "".join(random.choices(source, k=15))
@@ -372,7 +372,7 @@ class Boss(commands.GroupCog):
             self.currentvalue = ("")
             self.usersdamage = []
             self.usersinround = []
-            self.bossHP = 40000
+            self.bossHP = 0
             self.round = 0
             self.attack = False
             self.bossattack = 0
@@ -411,7 +411,7 @@ class Boss(commands.GroupCog):
         self.currentvalue = ("")
         self.usersdamage = []
         self.usersinround = []
-        self.bossHP = 40000
+        self.bossHP = 0
         self.round = 0
         self.attack = False
         self.bossattack = 0
