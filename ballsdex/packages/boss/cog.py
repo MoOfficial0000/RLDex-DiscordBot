@@ -188,14 +188,16 @@ class Boss(commands.GroupCog):
                 f"There are no ongoing rounds, use `/boss attack` or `/boss defend` to start one", ephemeral=True
             )
         self.picking = False
+        with open("roundstats.txt", "w") as file:
+            file.write(f"{self.currentvalue}")
         if not self.attack:
             if int(self.bossHP) <= 0:
                 await interaction.response.send_message(
-                    f"{self.currentvalue}There is 0 HP remaining on the boss, the boss has been defeated!",
+                    f"# Round {self.round} has ended\nThere is 0 HP remaining on the boss, the boss has been defeated!",
                 )
             else:
                 await interaction.response.send_message(
-                    f"{self.currentvalue}There is {self.bossHP} HP remaining on the boss",
+                    f"# Round {self.round} has ended\nThere is {self.bossHP} HP remaining on the boss",
                 )
         else:
             snapshotusers = self.users.copy()
@@ -203,14 +205,18 @@ class Boss(commands.GroupCog):
                 if str(user) not in self.currentvalue:
                     self.currentvalue += ("<@"+str(user)+"> has not picked on time and ***died!***\n")
                     self.users.remove(user)
+            with open("roundstats.txt","w") as file:
+                file.write(f"{self.currentvalue}")
             if len(self.users) == 0:
                 await interaction.response.send_message(
-                    f"The boss has dealt {self.bossattack} damage!\n{self.currentvalue}The boss has won!",
+                    f"# Round {self.round} has ended\nThe boss has dealt {self.bossattack} damage!\nThe boss has won!",
                 )
             else:
                 await interaction.response.send_message(
-                    f"The boss has dealt {self.bossattack} damage!\n{self.currentvalue}",
+                    f"# Round {self.round} has ended\nThe boss has dealt {self.bossattack} damage!\n",
                 )
+        with open("roundstats.txt", "rb") as file:
+            await interaction.followup.send(file=discord.File(file,"roundstats.txt"))
         self.currentvalue = ("")
 
     @bossadmin.command(name="stats")
