@@ -14,6 +14,7 @@ from ballsdex.settings import settings
 from ballsdex.core.utils.transformers import BallInstanceTransform
 from ballsdex.core.utils.transformers import BallEnabledTransform
 from ballsdex.core.utils.transformers import SpecialTransform, BallTransform
+from ballsdex.core.utils.transformers import SpecialEnabledTransform
 from ballsdex.core.utils.paginator import FieldPageSource, Pages
 from ballsdex.core.utils.logging import log_action
 from ballsdex.settings import settings
@@ -271,9 +272,24 @@ class Boss(commands.GroupCog):
 
 
     @app_commands.command()
-    async def select(self, interaction: discord.Interaction, ball: BallInstanceTransform):
+    async def select(
+        self,
+        interaction: discord.Interaction,
+        ball: BallInstanceTransform,
+        special: SpecialEnabledTransform | None = None,
+        shiny: bool | None = None,
+    ):
         """
-        Select an countryball to use against the boss.
+        Select countryball to use against the boss.
+        
+        Parameters
+        ----------
+        countryball: BallInstance
+            The countryball you want to select
+        special: Special
+            Filter the results of autocompletion to a special event. Ignored afterwards.
+        shiny: bool
+            Filter the results of autocompletion to shinies. Ignored afterwards.
         """
         if [int(interaction.user.id),self.round] in self.usersinround:
             return await interaction.response.send_message(
