@@ -83,6 +83,7 @@ class Boss(commands.GroupCog):
         self.bossattack = 0
         self.bossball = None
         self.bosswild = None
+        self.disqualified = []
 
     bossadmin = app_commands.Group(name="admin", description="admin commands for boss")
 
@@ -222,7 +223,51 @@ class Boss(commands.GroupCog):
         with open("stats.txt","rb") as file:
             return await interaction.response.send_message(file=discord.File(file,"stats.txt"), ephemeral=True)
 
+    @bossadmin.command(name="disqualify")
+    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    async def disqualify(
+        self,
+        interaction: discord.Interaction,
+        user: discord.User | None = None,
+        user_id : str | None = None,
+        ):
+        """
+        Disqualify a member from the boss
+        """
+        if (user and user_id) or (not user and not user_id):
+            await interaction.response.send_message(
+                "You must provide either `user` or `user_id`.", ephemeral=True
+            )
+            return
 
+        if not user:
+            try:
+                user = await self.bot.fetch_user(int(user_id))  # type: ignore
+            except ValueError:
+                await interaction.response.send_message(
+                    "The user ID you gave is not valid.", ephemeral=True
+                )
+                return
+            except discord.NotFound:
+                await interaction.response.send_message(
+                    "The given user ID could not be found.", ephemeral=True
+                )
+                return
+        else:
+            user_id = user.id
+
+        if int(user_id) not in self.users:
+            await interaction.response.send_message(
+                f"{user} is not in the Battle.", ephemeral=True
+            )
+            return
+        else:
+            self.users.remove(int(user_id))
+            self.disqualified.append(int(user_id))
+            await interaction.response.send_message(
+                f"{user} has been disqualified successfully.", ephemeral=True
+            )
+            return
 
 
     @app_commands.command()
@@ -378,6 +423,7 @@ class Boss(commands.GroupCog):
             self.bossattack = 0
             self.bossball = None
             self.bosswild = None
+            self.disqualified = []
             return await interaction.response.send_message(f"BOSS HAS CONCLUDED\nThe boss has won the Boss Battle!")
         if do_not_reward == False:
             await interaction.response.defer(thinking=True)
@@ -417,6 +463,7 @@ class Boss(commands.GroupCog):
         self.bossattack = 0
         self.bossball = None
         self.bosswild = None
+        self.disqualified = []
 
     @app_commands.command()
     async def join(self, interaction: discord.Interaction):
@@ -425,6 +472,8 @@ class Boss(commands.GroupCog):
         """
         if not self.boss_enabled:
             return await interaction.response.send_message("Boss is disabled", ephemeral=True)
+        if int(interaction.user.id) in self.disqualified:
+            return await interaction.response.send_message("You have been disqualified", ephemeral=True)
         if [int(interaction.user.id),self.round] in self.usersinround:
             return await interaction.response.send_message("You have already joined the boss", ephemeral=True)
         if self.round != 0 and interaction.user.id not in self.users:
