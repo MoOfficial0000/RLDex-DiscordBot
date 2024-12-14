@@ -88,7 +88,7 @@ class Boss(commands.GroupCog):
 
     @bossadmin.command(name="start")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
-    async def start(self, interaction: discord.Interaction, ball: BallTransform, hp_amount):
+    async def start(self, interaction: discord.Interaction, ball: BallTransform, hp_amount: int):
         """
         Start the boss
         """
