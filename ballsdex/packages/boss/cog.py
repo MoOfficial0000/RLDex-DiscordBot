@@ -435,6 +435,10 @@ class Boss(commands.GroupCog):
         await interaction.response.send_message(
             "You have joined the Boss Battle!", ephemeral=True
         )
+        await log_action(
+            f"{interaction.user} has joined the `{self.bossball}` Boss Battle.",
+            self.bot,
+        )
 
     def test(self, interaction: discord.Interaction):
         if [int(interaction.user.id),self.round] in self.usersinround:
