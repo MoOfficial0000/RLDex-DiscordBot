@@ -103,7 +103,7 @@ class Boss(commands.GroupCog):
         extension = ball.collection_card.split(".")[-1]
         file_location = "." + ball.collection_card
         file_name = f"nt_{generate_random_name()}.{extension}"
-        await interaction.response.send_message((f"# The boss battle has begun!\n-# HP: {self.bossHP} Credits: nobodyboy (Card Art)"),file=discord.File(file_location, filename=file_name),)
+        await interaction.response.send_message((f"# The boss battle has begun! {self.bot.get_emoji(ball.emoji_id)}\n-# HP: {self.bossHP} Credits: nobodyboy (Card Art)"),file=discord.File(file_location, filename=file_name),)
         await interaction.followup.send("Use `/boss join` to join the battle!")
         if ball != None:
             self.boss_enabled = True
@@ -168,7 +168,7 @@ class Boss(commands.GroupCog):
         file_location = "." + self.bossball.wild_card
         file_name = f"nt_{generate_random_name()}.{extension}"
         await interaction.response.send_message(
-            (f"Round {self.round}\n# {self.bossball.country} is preparing to defend!"),file=discord.File(file_location, filename=file_name)
+            (f"Round {self.round}\n# {self.bossball.country} is preparing to defend! {self.bot.get_emoji(self.bossball.emoji_id)}"),file=discord.File(file_location, filename=file_name)
         )
         await interaction.followup.send(f"Use `/boss select` to select your attacking {settings.collectible_name}.\nYour selected {settings.collectible_name}'s ATK will be used to attack.")
         self.picking = True
@@ -193,11 +193,11 @@ class Boss(commands.GroupCog):
         if not self.attack:
             if int(self.bossHP) <= 0:
                 await interaction.response.send_message(
-                    f"# Round {self.round} has ended\nThere is 0 HP remaining on the boss, the boss has been defeated!",
+                    f"# Round {self.round} has ended {self.bot.get_emoji(self.bossball.emoji_id)}\nThere is 0 HP remaining on the boss, the boss has been defeated!",
                 )
             else:
                 await interaction.response.send_message(
-                    f"# Round {self.round} has ended\nThere is {self.bossHP} HP remaining on the boss",
+                    f"# Round {self.round} has ended {self.bot.get_emoji(self.bossball.emoji_id)}\nThere is {self.bossHP} HP remaining on the boss",
                 )
         else:
             snapshotusers = self.users.copy()
@@ -209,11 +209,11 @@ class Boss(commands.GroupCog):
                 file.write(f"{self.currentvalue}")
             if len(self.users) == 0:
                 await interaction.response.send_message(
-                    f"# Round {self.round} has ended\nThe boss has dealt {self.bossattack} damage!\nThe boss has won!",
+                    f"# Round {self.round} has ended {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has dealt {self.bossattack} damage!\nThe boss has won!",
                 )
             else:
                 await interaction.response.send_message(
-                    f"# Round {self.round} has ended\nThe boss has dealt {self.bossattack} damage!\n",
+                    f"# Round {self.round} has ended {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has dealt {self.bossattack} damage!\n",
                 )
         with open("roundstats.txt", "rb") as file:
             await interaction.followup.send(file=discord.File(file,"roundstats.txt"))
