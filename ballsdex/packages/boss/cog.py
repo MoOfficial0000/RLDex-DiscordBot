@@ -137,7 +137,7 @@ class Boss(commands.GroupCog):
         file_location = "." + self.bossball.wild_card
         file_name = f"nt_{generate_random_name()}.{extension}"
         await interaction.response.send_message(
-            (f"Round {self.round}\n# {self.bossball.country} is preparing to attack!"),file=discord.File(file_location, filename=file_name)
+            (f"Round {self.round}\n# {self.bossball.country} is preparing to attack! {self.bot.get_emoji(self.bossball.emoji_id)}"),file=discord.File(file_location, filename=file_name)
         )
         await interaction.followup.send(f"Use `/boss select` to select your defending {settings.collectible_name}.\nYour selected {settings.collectible_name}'s HP will be used to defend.")
         self.picking = True
