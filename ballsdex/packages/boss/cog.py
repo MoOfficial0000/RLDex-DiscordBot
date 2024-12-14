@@ -203,7 +203,8 @@ class Boss(commands.GroupCog):
             snapshotusers = self.users.copy()
             for user in snapshotusers:
                 if str(user) not in self.currentvalue:
-                    self.currentvalue += ("<@"+str(user)+"> has not picked on time and ***died!***\n")
+                    user = await self.bot.fetch_user(int(user))
+                    self.currentvalue += ("<@"+str(user)+"> has not picked on time and died!\n")
                     self.users.remove(user)
             with open("roundstats.txt","w") as file:
                 file.write(f"{self.currentvalue}")
