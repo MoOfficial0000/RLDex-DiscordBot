@@ -512,10 +512,10 @@ class Boss(commands.GroupCog):
         else:
             if len(totalnum) != 0:
                 bosswinner = totalnum[random.randint(0,len(totalnum)-1)][0]
-        await interaction.response.send_message(
-            f"Boss successfully concluded", ephemeral=True
-        )
         if bosswinner == 0:
+            await interaction.response.send_message(
+                f"Boss successfully concluded", ephemeral=True
+            )
             await interaction.channel.send(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has won the Boss Battle!")
             with open("totalstats.txt", "w") as file:
                 file.write(f"{total}{total2}")
@@ -536,7 +536,6 @@ class Boss(commands.GroupCog):
             self.disqualified = []
             return
         if winner != "None":
-            await interaction.response.defer(thinking=True)
             player, created = await Player.get_or_create(discord_id=bosswinner)
             special = special = [x for x in specials.values() if x.name == "Boss"][0]
             instance = await BallInstance.create(
@@ -546,6 +545,9 @@ class Boss(commands.GroupCog):
                 special=special,
                 attack_bonus=0,
                 health_bonus=0,
+            )
+            await interaction.response.send_message(
+                f"Boss successfully concluded", ephemeral=True
             )
             await interaction.channel.send(
                 f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\n<@{bosswinner}> has won the Boss Battle!\n\n"
