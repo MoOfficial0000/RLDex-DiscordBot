@@ -102,8 +102,11 @@ class Boss(commands.GroupCog):
         extension = ball.collection_card.split(".")[-1]
         file_location = "." + ball.collection_card
         file_name = f"nt_{generate_random_name()}.{extension}"
-        await interaction.response.send_message((f"# The boss battle has begun! {self.bot.get_emoji(ball.emoji_id)}\n-# HP: {self.bossHP} Credits: nobodyboy (Card Art)"),file=discord.File(file_location, filename=file_name),)
-        await interaction.followup.send("Use `/boss join` to join the battle!")
+        await interaction.response.send_message(
+            f"Boss successfully started", ephemeral=True
+        )
+        await interaction.channel.send((f"# The boss battle has begun! {self.bot.get_emoji(ball.emoji_id)}\n-# HP: {self.bossHP} Credits: nobodyboy (Card Art)"),file=discord.File(file_location, filename=file_name),)
+        await interaction.channel.send("> Use `/boss join` to join the battle!")
         if ball != None:
             self.boss_enabled = True
             self.bossball = ball
@@ -136,9 +139,12 @@ class Boss(commands.GroupCog):
         file_location = "." + self.bossball.wild_card
         file_name = f"nt_{generate_random_name()}.{extension}"
         await interaction.response.send_message(
+            f"Round successfully started", ephemeral = True
+        )
+        await interaction.channel.send(
             (f"Round {self.round}\n# {self.bossball.country} is preparing to attack! {self.bot.get_emoji(self.bossball.emoji_id)}"),file=discord.File(file_location, filename=file_name)
         )
-        await interaction.followup.send(f"Use `/boss select` to select your defending {settings.collectible_name}.\nYour selected {settings.collectible_name}'s HP will be used to defend.")
+        await interaction.channel.send(f"> Use `/boss select` to select your defending {settings.collectible_name}.\n> Your selected {settings.collectible_name}'s HP will be used to defend.")
         self.picking = True
         self.attack = True
         self.bossattack = (attack_amount if attack_amount is not None else random.randrange(0, 10000, 500))
@@ -167,9 +173,12 @@ class Boss(commands.GroupCog):
         file_location = "." + self.bossball.wild_card
         file_name = f"nt_{generate_random_name()}.{extension}"
         await interaction.response.send_message(
+            f"Round successfully started", ephemeral=True
+        )
+        await interaction.channel.send(
             (f"Round {self.round}\n# {self.bossball.country} is preparing to defend! {self.bot.get_emoji(self.bossball.emoji_id)}"),file=discord.File(file_location, filename=file_name)
         )
-        await interaction.followup.send(f"Use `/boss select` to select your attacking {settings.collectible_name}.\nYour selected {settings.collectible_name}'s ATK will be used to attack.")
+        await interaction.channel.send(f"> Use `/boss select` to select your attacking {settings.collectible_name}.\n> Your selected {settings.collectible_name}'s ATK will be used to attack.")
         self.picking = True
         self.attack = False
 
@@ -189,13 +198,16 @@ class Boss(commands.GroupCog):
         self.picking = False
         with open("roundstats.txt", "w") as file:
             file.write(f"{self.currentvalue}")
+        await interaction.response.send_message(
+            f"Round successfully ended", ephemeral=True
+        )
         if not self.attack:
             if int(self.bossHP) <= 0:
-                await interaction.response.send_message(
+                await interaction.channel.send(
                     f"# Round {self.round} has ended {self.bot.get_emoji(self.bossball.emoji_id)}\nThere is 0 HP remaining on the boss, the boss has been defeated!",
                 )
             else:
-                await interaction.response.send_message(
+                await interaction.channel.send(
                     f"# Round {self.round} has ended {self.bot.get_emoji(self.bossball.emoji_id)}\nThere is {self.bossHP} HP remaining on the boss",
                 )
         else:
@@ -209,15 +221,15 @@ class Boss(commands.GroupCog):
             with open("roundstats.txt","w") as file:
                 file.write(f"{self.currentvalue}")
             if len(self.users) == 0:
-                await interaction.response.send_message(
+                await interaction.channel.send(
                     f"# Round {self.round} has ended {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has dealt {self.bossattack} damage!\nThe boss has won!",
                 )
             else:
-                await interaction.response.send_message(
+                await interaction.channel.send(
                     f"# Round {self.round} has ended {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has dealt {self.bossattack} damage!\n",
                 )
         with open("roundstats.txt", "rb") as file:
-            await interaction.followup.send(file=discord.File(file,"roundstats.txt"))
+            await interaction.channel.send(file=discord.File(file,"roundstats.txt"))
         self.currentvalue = ("")
 
     @bossadmin.command(name="stats")
@@ -500,12 +512,15 @@ class Boss(commands.GroupCog):
         else:
             if len(totalnum) != 0:
                 bosswinner = totalnum[random.randint(0,len(totalnum)-1)][0]
+        await interaction.response.send_message(
+            f"Boss successfully concluded", ephemeral=True
+        )
         if bosswinner == 0:
-            await interaction.response.send_message(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has won the Boss Battle!")
+            await interaction.channel.send(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has won the Boss Battle!")
             with open("totalstats.txt", "w") as file:
                 file.write(f"{total}{total2}")
             with open("totalstats.txt", "rb") as file:
-                await interaction.followup.send(file=discord.File(file, "totalstats.txt"))
+                await interaction.channel.send(file=discord.File(file, "totalstats.txt"))
             self.round = 0
             self.balls = []
             self.users = []
@@ -532,7 +547,7 @@ class Boss(commands.GroupCog):
                 attack_bonus=0,
                 health_bonus=0,
             )
-            await interaction.followup.send(
+            await interaction.channel.send(
                 f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\n<@{bosswinner}> has won the Boss Battle!\n\n"
                 f"`Boss` `{self.bossball}` {settings.collectible_name} was successfully given.\n"
             )
@@ -545,11 +560,11 @@ class Boss(commands.GroupCog):
                 self.bot,
             )
         else:
-            await interaction.response.send_message(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has been defeated!")
+            await interaction.channel.send(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has been defeated!")
         with open("totalstats.txt", "w") as file:
             file.write(f"{total}{total2}")
         with open("totalstats.txt", "rb") as file:
-            await interaction.followup.send(file=discord.File(file, "totalstats.txt"))
+            await interaction.channel.send(file=discord.File(file, "totalstats.txt"))
         self.round = 0
         self.balls = []
         self.users = []
