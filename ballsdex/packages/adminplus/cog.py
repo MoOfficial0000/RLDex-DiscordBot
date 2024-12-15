@@ -136,8 +136,6 @@ class Adminplus(commands.GroupCog):
 
         Parameters
         ----------
-        user: discord.User
-            The user whose completion you want to view, if not yours.
         special: Special
             The special you want to see the completion of
         shiny: bool
@@ -250,12 +248,14 @@ class Adminplus(commands.GroupCog):
         pages = Pages(source=source, interaction=interaction, compact=True)
         await pages.start()
 
+
+
     @app_commands.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def special_rarity(self, interaction: discord.Interaction):
         # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
         """
-        Show the rarity list of the dex - made by GamingadlerHD
+        Show the special count list of the dex - made by GamingadlerHD
         """
         # Filter enabled collectibles
         events = [x for x in specials.values()]
@@ -365,43 +365,159 @@ class Adminplus(commands.GroupCog):
             ephemeral=True,
         )
 
+    async def _spawn_bomb(
+            self,
+            interaction: discord.Interaction,
+            countryball: Ball | None,
+            channel: discord.TextChannel,
+            n: int,
+    ):
+        spawned = 0
+
+        async def update_message_loop():
+            nonlocal spawned
+            for i in range(5 * 12 * 10):  # timeout progress after 10 minutes
+                await interaction.followup.edit_message(
+                    "@original",  # type: ignore
+                    content=f"Spawn bomb in progress in {channel.mention}, "
+                            f"{settings.collectible_name.title()}: {countryball or 'Random'}\n"
+                            f"{spawned}/{n} spawned ({round((spawned / n) * 100)}%)",
+                )
+                await asyncio.sleep(5)
+            await interaction.followup.edit_message(
+                "@original", content="Spawn bomb seems to have timed out."  # type: ignore
+            )
+
+        await interaction.response.send_message(
+            f"Starting spawn bomb in {channel.mention}...", ephemeral=True
+        )
+        task = self.bot.loop.create_task(update_message_loop())
+        try:
+            for i in range(n):
+                if not countryball:
+                    ball = await CountryBall.get_random()
+                else:
+                    ball = CountryBall(countryball)
+                result = await ball.spawn(channel)
+                if not result:
+                    task.cancel()
+                    await interaction.followup.edit_message(
+                        "@original",  # type: ignore
+                        content=f"A {settings.collectible_name} failed to spawn, probably "
+                                "indicating a lack of permissions to send messages "
+                                f"or upload files in {channel.mention}.",
+                    )
+                    return
+                spawned += 1
+            task.cancel()
+            await interaction.followup.edit_message(
+                "@original",  # type: ignore
+                content=f"Successfully spawned {spawned} {settings.plural_collectible_name} "
+                        f"in {channel.mention}!",
+            )
+        finally:
+            task.cancel()
+
     @balls.command()
-    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    @app_commands.checks.has_any_role(*settings.root_role_ids)
     async def spawn(
-        self,
-        interaction: discord.Interaction,
-        ball: BallTransform | None = None,
-        channel: discord.TextChannel | None = None,
+            self,
+            interaction: discord.Interaction,
+            countryball: BallTransform | None = None,
+            channel: discord.TextChannel | None = None,
+            n: int = 1,
     ):
         """
-        Force spawn a random or specified ball.
+        Force spawn a random or specified countryball.
 
         Parameters
         ----------
-        ball: Ball | None
+        countryball: Ball | None
             The countryball you want to spawn. Random according to rarities if not specified.
         channel: discord.TextChannel | None
             The channel you want to spawn the countryball in. Current channel if not specified.
+        n: int
+            The number of countryballs to spawn. If no countryball was specified, it's random
+            every time.
         """
         # the transformer triggered a response, meaning user tried an incorrect input
         if interaction.response.is_done():
             return
-        if ball.tradeable == False:
-            return await interaction.response.send_message(f"You do not have permission to spawn this {settings.collectible_name}", ephemeral=True)
+
+        if n < 1:
+            await interaction.response.send_message(
+                "`n` must be superior or equal to 1.", ephemeral=True
+            )
+            return
+        if n > 100:
+            await interaction.response.send_message(
+                f"That doesn't seem reasonable to spawn {n} times, "
+                "the bot will be rate-limited. Try something lower than 100.",
+                ephemeral=True,
+            )
+            return
+
+        if n > 1:
+            await self._spawn_bomb(
+                interaction, countryball, channel or interaction.channel, n  # type: ignore
+            )
+            await log_action(
+                f"{interaction.user} spawned {settings.collectible_name}"
+                f" {countryball or 'random'} {n} times in {channel or interaction.channel}.",
+                self.bot,
+            )
+
+            return
+
         await interaction.response.defer(ephemeral=True, thinking=True)
-        if not ball:
-            countryball = await CountryBall.get_random()
+        if not countryball:
+            ball = await CountryBall.get_random()
         else:
-            countryball = CountryBall(ball)
-        await countryball.spawn(channel or interaction.channel)  # type: ignore
-        await interaction.followup.send(
-            f"{settings.collectible_name.title()} spawned.", ephemeral=True
-        )
-        await log_action(
-            f"{interaction.user} spawned {settings.collectible_name} {countryball.name} "
-            f"in {channel or interaction.channel}.",
-            self.bot,
-        )
+            ball = CountryBall(countryball)
+        result = await ball.spawn(channel or interaction.channel)  # type: ignore
+
+        if result:
+            await interaction.followup.send(
+                f"{settings.collectible_name.title()} spawned.", ephemeral=True
+            )
+            await log_action(
+                f"{interaction.user} spawned {settings.collectible_name} {ball.name} "
+                f"in {channel or interaction.channel}.",
+                self.bot,
+            )
+
+    @balls.command()
+    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    async def wheel(
+        self,
+        interaction: discord.Interaction,
+        shiny_percentage: float | None = float(-1),
+        mythical_percentage: float | None = float(-1),
+    ):
+        """
+        Spin the wheel!.
+        """
+        await interaction.response.defer(thinking=True)
+        ball = await CountryBall.get_random()
+
+        shinyresult = ""
+        mythicalresult = ""
+        plusatk = ""
+        plushp = ""
+        shinyrng = random.randint(0,100)
+        mythicalrng = random.randint(0,100)
+        atkrng = random.randint(-10, 10)*10
+        if atkrng >= 0:
+            plusatk = "+"
+        hprng = random.randint(-10, 10)*10
+        if hprng >= 0:
+            plushp = "+"
+        if shinyrng <= (shiny_percentage):
+            shinyresult = f"\n***✨ It's a shiny {settings.collectible_name}! ✨***"
+        elif mythicalrng <= (mythical_percentage):
+            mythicalresult = f"\n*🔮 This {settings.collectible_name} exudes a mythical aura.🔮*"
+        await interaction.followup.send(f"# {ball.name}\n`{plusatk}{atkrng}ATK/{plushp}{hprng}HP`{shinyresult}{mythicalresult}")
+
 
     @balls.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
