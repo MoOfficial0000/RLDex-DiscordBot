@@ -419,7 +419,7 @@ class Adminplus(commands.GroupCog):
             task.cancel()
 
     @balls.command()
-    @app_commands.checks.has_any_role(*settings.root_role_ids)
+    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def spawn(
             self,
             interaction: discord.Interaction,
