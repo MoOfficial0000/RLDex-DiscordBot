@@ -107,7 +107,7 @@ class Collector(commands.GroupCog):
     async def list(self, interaction: discord.Interaction["BallsDexBot"]):
         # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
         """
-        Show the collector card list of the dex - inspired by GamingadlerHD
+        Show the collector card list of the dex - made by GamingadlerHD and Mo Official
         """
         # Filter enabled collectibles
         enabled_collectibles = [x for x in balls.values() if x.enabled]
@@ -138,7 +138,7 @@ class Collector(commands.GroupCog):
             if settings.bot_name == "dragonballdex":
                 rarity1 = int(round((((500 * collectible.rarity) + 3245) / 116), -1))
             else:
-                rarity1 = int(round((((235 * collectible.rarity) + 3245) / 116), -1)))
+                rarity1 = int(round((((235 * collectible.rarity) + 3245) / 116), -1))
 
             entry = (name, f"{emote} Amount required: {rarity1}")
             entries.append(entry)
@@ -148,7 +148,7 @@ class Collector(commands.GroupCog):
 
         source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
         source.embed.description = (
-            f"__**Rocket League Dex Collector Card List**__"
+            f"__**{settings.bot_name} Collector Card List**__"
         )
         source.embed.colour = discord.Colour.blurple()
         source.embed.set_author(
