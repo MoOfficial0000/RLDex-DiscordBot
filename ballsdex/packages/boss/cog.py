@@ -95,6 +95,14 @@ class Boss(commands.GroupCog):
         """
         if self.boss_enabled == True:
             return await interaction.response.send_message(f"There is already an ongoing boss battle", ephemeral=True)
+        if ball.enabled == False:
+            disabledperm = False
+            for i in settings.root_role_ids:
+                await interaction.channel.send(f"{i}")
+                if interaction.guild.get_role(i) in interaction.user.roles:
+                    disabledperm = True
+            if disabledperm == False:
+                return await interaction.response.send_message(f"You do not have permission to boss start this {settings.collectible_name}", ephemeral=True)
         self.bossHP = hp_amount
         def generate_random_name():
             source = string.ascii_uppercase + string.ascii_lowercase + string.ascii_letters
