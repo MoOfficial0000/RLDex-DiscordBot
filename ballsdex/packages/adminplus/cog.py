@@ -469,6 +469,11 @@ class Adminplus(commands.GroupCog):
 
             return
 
+        if countryball:
+            if countryball.enabled == False:
+                return await interaction.response.send_message(
+                    f"You do not have permission to spawn this {settings.collectible_name}", ephemeral=True
+                )
         await interaction.response.defer(ephemeral=True, thinking=True)
         if not countryball:
             ball = await CountryBall.get_random()
