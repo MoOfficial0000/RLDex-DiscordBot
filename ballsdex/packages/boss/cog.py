@@ -89,7 +89,13 @@ class Boss(commands.GroupCog):
 
     @bossadmin.command(name="start")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
-    async def start(self, interaction: discord.Interaction, ball: BallTransform, hp_amount: int):
+    async def start(
+        self,
+        interaction: discord.Interaction,
+        ball: BallTransform,
+        hp_amount: int,
+        wild_card: discord.Attachment | None = None,
+        collection_card: discord.Attachment | None = None):
         """
         Start the boss
         """
@@ -98,7 +104,6 @@ class Boss(commands.GroupCog):
         if ball.enabled == False:
             disabledperm = False
             for i in settings.root_role_ids:
-                await interaction.channel.send(f"{i}")
                 if interaction.guild.get_role(i) in interaction.user.roles:
                     disabledperm = True
             if disabledperm == False:
@@ -107,22 +112,28 @@ class Boss(commands.GroupCog):
         def generate_random_name():
             source = string.ascii_uppercase + string.ascii_lowercase + string.ascii_letters
             return "".join(random.choices(source, k=15))
-        extension = ball.collection_card.split(".")[-1]
-        file_location = "." + ball.collection_card
-        file_name = f"nt_{generate_random_name()}.{extension}"
+        if collection_card == None:
+            extension = ball.collection_card.split(".")[-1]
+            file_location = "." + ball.collection_card
+            file_name = f"nt_{generate_random_name()}.{extension}"
+            file=discord.File(file_location, filename=file_name)
+        else:
+            file = await collection_card.to_file()
         await interaction.response.send_message(
             f"Boss successfully started", ephemeral=True
         )
-        await interaction.channel.send((f"# The boss battle has begun! {self.bot.get_emoji(ball.emoji_id)}\n-# HP: {self.bossHP} Credits: nobodyboy (Card Art)"),file=discord.File(file_location, filename=file_name),)
+        await interaction.channel.send((f"# The boss battle has begun! {self.bot.get_emoji(ball.emoji_id)}\n-# HP: {self.bossHP} Credits: nobodyboy (Card Art)"),file=file,)
         await interaction.channel.send("> Use `/boss join` to join the battle!")
         if ball != None:
             self.boss_enabled = True
             self.bossball = ball
-
-            extension = ball.wild_card.split(".")[-1]
-            file_location = "." + ball.wild_card
-            file_name = f"nt_{generate_random_name()}.{extension}"
-            self.bosswild = file=discord.File(file_location, filename=file_name)
+            if wild_card == None:
+                extension = ball.wild_card.split(".")[-1]
+                file_location = "." + ball.wild_card
+                file_name = f"nt_{generate_random_name()}.{extension}"
+                self.bosswild = discord.File(file_location, filename=file_name)
+            else:
+                self.bosswild = await wild_card.to_file()
 
     @bossadmin.command(name="attack")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
@@ -150,7 +161,7 @@ class Boss(commands.GroupCog):
             f"Round successfully started", ephemeral = True
         )
         await interaction.channel.send(
-            (f"Round {self.round}\n# {self.bossball.country} is preparing to attack! {self.bot.get_emoji(self.bossball.emoji_id)}"),file=discord.File(file_location, filename=file_name)
+            (f"Round {self.round}\n# {self.bossball.country} is preparing to attack! {self.bot.get_emoji(self.bossball.emoji_id)}"),file=self.bosswild
         )
         await interaction.channel.send(f"> Use `/boss select` to select your defending {settings.collectible_name}.\n> Your selected {settings.collectible_name}'s HP will be used to defend.")
         self.picking = True
@@ -184,7 +195,7 @@ class Boss(commands.GroupCog):
             f"Round successfully started", ephemeral=True
         )
         await interaction.channel.send(
-            (f"Round {self.round}\n# {self.bossball.country} is preparing to defend! {self.bot.get_emoji(self.bossball.emoji_id)}"),file=discord.File(file_location, filename=file_name)
+            (f"Round {self.round}\n# {self.bossball.country} is preparing to defend! {self.bot.get_emoji(self.bossball.emoji_id)}"),file=self.bosswild
         )
         await interaction.channel.send(f"> Use `/boss select` to select your attacking {settings.collectible_name}.\n> Your selected {settings.collectible_name}'s ATK will be used to attack.")
         self.picking = True
