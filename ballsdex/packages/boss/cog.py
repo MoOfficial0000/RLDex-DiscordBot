@@ -589,6 +589,7 @@ class Boss(commands.GroupCog):
             self.disqualified = []
             return
         if winner != "None":
+            await interaction.response.defer(ephemeral=True, thinking=True)
             player, created = await Player.get_or_create(discord_id=bosswinner)
             special = special = [x for x in specials.values() if x.name == "Boss"][0]
             instance = await BallInstance.create(
@@ -599,7 +600,7 @@ class Boss(commands.GroupCog):
                 attack_bonus=0,
                 health_bonus=0,
             )
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"Boss successfully concluded", ephemeral=True
             )
             await interaction.channel.send(
