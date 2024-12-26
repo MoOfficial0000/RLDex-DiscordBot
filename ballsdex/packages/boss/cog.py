@@ -15,8 +15,7 @@ from ballsdex.core.utils.transformers import BallInstanceTransform, SpecialEnabl
 from ballsdex.core.utils.transformers import BallEnabledTransform
 from ballsdex.core.utils.transformers import SpecialTransform, BallTransform
 from ballsdex.core.utils.paginator import FieldPageSource, Pages
-from ballsdex.core.utils.logging import log_action
-from ballsdex.settings import settings
+from ballsdex.core.bot import BallsDexBot
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
@@ -61,6 +60,23 @@ from ballsdex.core.models import (
 # 6. Step 3-5 is repeated until the boss' HP runs out, but you can end early with Step 7.
 # 7. /boss_conclude ends the boss battle and rewards the winner, but you can choose to *not* reward the winner (ADMIN ONLY)
 
+LOGCHANNEL = 1321913349125967896
+#Change this if you want to a different channel for boss logs
+#e.g.
+#LOGCHANNEL = 1234567890987654321
+
+async def log_action(message: str, bot: BallsDexBot, console_log: bool = False):
+    if LOGCHANNEL:
+        channel = bot.get_channel(LOGCHANNEL)
+        if not channel:
+            log.warning(f"Channel {LOGCHANNEL} not found")
+            return
+        if not isinstance(channel, discord.TextChannel):
+            log.warning(f"Channel {channel.name} is not a text channel")  # type: ignore
+            return
+        await channel.send(message)
+    if console_log:
+        log.info(message)
 
 @app_commands.guilds(*settings.admin_guild_ids)
 class Boss(commands.GroupCog):
@@ -506,16 +522,17 @@ class Boss(commands.GroupCog):
         """
         Ping all the alive players
         """
+        await interaction.response.defer(ephemeral=True, thinking=True)
         if len(self.users) == 0:
-            return await interaction.response.send_message("There are no users joined/remaining",ephemeral=True)
+            return await interaction.followup.send("There are no users joined/remaining",ephemeral=True)
         pingsmsg = "-#"
         for userid in self.users:
             pingsmsg = pingsmsg+" <@"+str(userid)+">"
         if len(pingsmsg) < 2000:
-            await interaction.response.send_message("Ping Successful")
+            await interaction.followup.send("Ping Successful",ephemeral=True)
             await interaction.channel.send(pingsmsg)
         else:
-            await interaction.response.send_message("Message too long, exceeds 2000 character limit")
+            await interaction.followup.send("Message too long, exceeds 2000 character limit",ephemeral=True)
             
 
     @bossadmin.command(name="conclude")
