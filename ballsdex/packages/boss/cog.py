@@ -60,7 +60,10 @@ from ballsdex.core.models import (
 # 6. Step 3-5 is repeated until the boss' HP runs out, but you can end early with Step 7.
 # 7. /boss_conclude ends the boss battle and rewards the winner, but you can choose to *not* reward the winner (ADMIN ONLY)
 
-LOGCHANNEL = 1321913349125967896
+if settings.bot_name == "dragonballdex":
+    LOGCHANNEL = 1321913349125967896
+else:
+    LOGCHANNEL = 1321918255274921994
 #Change this if you want to a different channel for boss logs
 #e.g.
 #LOGCHANNEL = 1234567890987654321
