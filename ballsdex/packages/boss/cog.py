@@ -112,7 +112,7 @@ class Boss(commands.GroupCog):
     async def start(
         self,
         interaction: discord.Interaction,
-        ball: BallTransform,
+        countryball: BallTransform,
         hp_amount: int,
         start_image: discord.Attachment | None = None,
         defend_image: discord.Attachment | None = None,
@@ -120,6 +120,7 @@ class Boss(commands.GroupCog):
         """
         Start the boss
         """
+        ball = countryball
         if self.boss_enabled == True:
             return await interaction.response.send_message(f"There is already an ongoing boss battle", ephemeral=True)
         if ball.enabled == False:
@@ -367,7 +368,7 @@ class Boss(commands.GroupCog):
     async def select(
         self,
         interaction: discord.Interaction,
-        ball: BallInstanceTransform,
+        countryball: BallInstanceTransform,
         special: SpecialEnabledTransform | None = None,
         shiny: bool | None = None,
     ):
@@ -383,6 +384,7 @@ class Boss(commands.GroupCog):
         shiny: bool
             Filter the results of autocompletion to shinies. Ignored afterwards.
         """
+        ball = countryball
         if [int(interaction.user.id),self.round] in self.usersinround:
             return await interaction.response.send_message(
                 f"You have already selected an {settings.collectible_name}", ephemeral=True
