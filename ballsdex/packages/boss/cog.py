@@ -638,6 +638,9 @@ class Boss(commands.GroupCog):
                 self.bot,
             )
         else:
+            await interaction.response.send_message(
+                f"Boss successfully concluded", ephemeral=True
+            )
             await interaction.channel.send(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has been defeated!")
         with open("totalstats.txt", "w") as file:
             file.write(f"{total}{total2}")
