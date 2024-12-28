@@ -559,6 +559,7 @@ class Boss(commands.GroupCog):
         """
         Finish the boss, conclude the Winner
         """
+        await interaction.response.defer(ephemeral=True, thinking=True)
         self.picking = False
         self.boss_enabled = False
         test = self.usersdamage
@@ -593,7 +594,7 @@ class Boss(commands.GroupCog):
             if len(totalnum) != 0:
                 bosswinner = totalnum[random.randint(0,len(totalnum)-1)][0]
         if bosswinner == 0:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"Boss successfully concluded", ephemeral=True
             )
             await interaction.channel.send(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has won the Boss Battle!")
@@ -617,7 +618,6 @@ class Boss(commands.GroupCog):
             self.disqualified = []
             return
         if winner != "None":
-            await interaction.response.defer(ephemeral=True, thinking=True)
             player, created = await Player.get_or_create(discord_id=bosswinner)
             special = special = [x for x in specials.values() if x.name == "Boss"][0]
             instance = await BallInstance.create(
@@ -644,7 +644,7 @@ class Boss(commands.GroupCog):
                 self.bot,
             )
         else:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"Boss successfully concluded", ephemeral=True
             )
             await interaction.channel.send(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has been defeated!")
