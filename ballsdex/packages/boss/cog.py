@@ -529,17 +529,25 @@ class Boss(commands.GroupCog):
 
     @bossadmin.command(name="ping")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
-    async def ping(self, interaction: discord.Interaction):
+    async def ping(self, interaction: discord.Interaction, unselected: bool | None = False):
         """
         Ping all the alive players
         """
+        snapshotusers = self.users.copy()
         await interaction.response.defer(ephemeral=True, thinking=True)
-        if len(self.users) == 0:
+        if len(snapshotusers) == 0:
             return await interaction.followup.send("There are no users joined/remaining",ephemeral=True)
         pingsmsg = "-#"
-        for userid in self.users:
-            pingsmsg = pingsmsg+" <@"+str(userid)+">"
-        if len(pingsmsg) < 2000:
+        if unselected:
+            for userid in snapshotusers:
+                if [userid,self.round] not in self.usersinround:
+                    pingsmsg = pingsmsg+" <@"+str(userid)+">"
+        else:
+            for userid in snapshotusers:
+                pingsmsg = pingsmsg+" <@"+str(userid)+">"
+        if pingsmsg == "-#":
+            await interaction.followup.send("All users have selected",ephemeral=True)
+        elif len(pingsmsg) < 2000:
             await interaction.followup.send("Ping Successful",ephemeral=True)
             await interaction.channel.send(pingsmsg)
         else:
