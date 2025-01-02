@@ -577,7 +577,7 @@ class Adminplus(commands.GroupCog):
         await log_action(
             f"{interaction.user} gave {settings.collectible_name} "
             f"{countryball.country} to {user}. (Special={special.name if special else None} "
-            f"ATK={instance.attack_bonus:+d} HP={instance.health_bonus:+d} "
+            f"ATK={instance.attack_bonus:+d} HP={instance.health_bonus:+d})."
             self.bot,
         )
 
