@@ -634,7 +634,6 @@ class Boss(commands.GroupCog):
             instance = await BallInstance.create(
                 ball=self.bossball,
                 player=player,
-                shiny=False,
                 special=special,
                 attack_bonus=0,
                 health_bonus=0,
@@ -650,8 +649,8 @@ class Boss(commands.GroupCog):
 
             await log_action(
                 f"`BOSS REWARDS` gave {settings.collectible_name} {self.bossball.country} to {bosswinner_user}. "
-                f"Special=Boss ATK=0 "
-                f"HP=0 shiny=None",
+                f"Special=Boss "
+                f"ATK=0 HP=0",
                 self.bot,
             )
         else:
