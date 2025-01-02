@@ -3,6 +3,8 @@ import logging
 import discord
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import Button, View, button
+from tortoise.exceptions import DoesNotExist
 
 from typing import TYPE_CHECKING, Optional, cast
 
@@ -13,30 +15,54 @@ from ballsdex.core.models import balls
 from ballsdex.core.utils.transformers import BallEnabledTransform
 from ballsdex.core.utils.transformers import SpecialEnabledTransform
 from ballsdex.core.utils.transformers import SpecialTransform
+from ballsdex.core.utils.buttons import ConfirmChoiceView
+from ballsdex.core.utils.paginator import FieldPageSource, Pages
+from ballsdex.core.utils.sorting import SortingChoices, sort_balls
 from ballsdex.core.utils.paginator import FieldPageSource, Pages
 from ballsdex.settings import settings
+from ballsdex.core.utils.utils import inventory_privacy, is_staff
+from ballsdex.packages.balls.countryballs_paginator import CountryballsViewer
+from ballsdex.core.utils.logging import log_action
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
 
+# You must have a special called "Collector" for this to work.
+
+if settings.bot_name == "dragonballdex":
+    # AMOUNT NEEDED FOR TOP 1 CC BALL e.g. reichtangle
+    T1Req = 30
+
+    # RARITY OF TOP 1 BALL e.g. reichtangle
+    # (If not originally inputted as 1 into admin panel or /admin balls create)
+    T1Rarity = 1
+
+    # AMOUNT NEEDED FOR **MOST** COMMON CC BALL e.g. djibouti
+    CommonReq = 300
+
+    # RARITY OF MOST COMMON BALL e.g. djibouti
+    # (Which was originally inputted into admin panel or /admin balls create)
+    CommonRarity = 62
+else:
+    T1Req = 30
+    T1Rarity = 1
+    CommonReq = 500
+    CommonRarity = 233
+
+# ROUNDING OPTION FOR AMOUNTS NEEDED, WHAT YOU WOULD LIKE EVERYTHING TO ROUNDED TO
+# e.g. Putting 10 makes everything round to the nearest 10, cc reqs would look something like:(100,110,120,130,140,150 etc)
+# e.g. Putting 5 looks like: (100,105,110,115,120 etc)
+# e.g. Putting 20 looks like: (100,120,140,160,180,200 etc)
+# 1 is no rounding and looks like: (100,106,112,119,127 etc)
+# however you are not limited to these numbers, I think Ballsdex does 50
+RoundingOption = 10
+# WARNINGS:
+# if T1Req/CommonReq is not divisible by RoundingOption they will be affected.
+# if T1Req is less than RoundingOption it will be rounded down to 0, (That's just how integer conversions work in python unfortunately)
+
 log = logging.getLogger("ballsdex.packages.collector.cog")
 
-# HOW TO USE THIS PACKAGE.
-# STEP 1:
-# CREATE A JSON FILE NAMED "collector.json".
-# WRITE THE DATA IN THE FOLLOWING FORMAT.
-# {"ITEM_1" : NUMBER_OF_INSTANCES_NEEDED_TO_GET_COLLECTOR_FOR_THIS_ITEM ,  "ITEM_2" : NUMBER_OF_INSTANCES_NEEDED_TO_GET_COLLECTOR_FOR_THIS_ITEM}
-# FOR EXAMPLE:
-# {"China" : 100, "Japan" : 50, "India" : 30}
-# STEP 2:
-# CREATE A SPECIAL EVENT NAMED "collector".
-# SET THE DATES SUCH THAT THE EVENT ENDS EVEN BEFORE IT IS CREATED.
-# FOR EXAMPLE:
-# IF YOU ARE MAKING THE EVENT ON 1ST JULY 2024,
-# SET THE END DATE OF THE EVENT ON 30TH JUNE 2024 OR EARLIER.
-# STEP 3:
-# CHECK IF IT WORKS AND ENSURE THAT IT DOES.
-# THAT'S ALL 
+gradient = (CommonReq-T1Req)/(CommonRarity-T1Rarity)
 
 class Collector(commands.GroupCog):
     """
@@ -45,6 +71,8 @@ class Collector(commands.GroupCog):
 
     def __init__(self, bot: "BallsDexBot"):
         self.bot = bot
+
+    ccadmin = app_commands.Group(name="admin", description="admin commands for collector")
     
     @app_commands.command()
     async def card(
@@ -53,7 +81,7 @@ class Collector(commands.GroupCog):
         countryball: BallEnabledTransform,
         ):
         """
-        Get the collector card for a countryball.
+        Get the collector card for a countryball - made by Kingofthehill4965, modified by MoOfficial.
 
         Parameters
         ----------
@@ -80,10 +108,9 @@ class Collector(commands.GroupCog):
             )
         filters["player__discord_id"] = interaction.user.id
         balls = await BallInstance.filter(**filters).count()
-        if settings.bot_name == "dragonballdex":
-            collector_number = int(round((((500*countryball.rarity) + 3245)/116),-1))
-        else:
-            collector_number = int(round((((235 * countryball.rarity) + 3245) / 116), -1))
+        
+        collector_number = int(int((gradient*(countryball.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
+
         country = f"{countryball.country}"
         player, created = await Player.get_or_create(discord_id=interaction.user.id)
         if balls >= collector_number:
@@ -107,7 +134,7 @@ class Collector(commands.GroupCog):
     async def list(self, interaction: discord.Interaction["BallsDexBot"]):
         # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
         """
-        Show the collector card list of the dex - made by GamingadlerHD and Mo Official
+        Show the collector card list of the dex - inpsired by GamingadlerHD, made by MoOfficial.
         """
         # Filter enabled collectibles
         enabled_collectibles = [x for x in balls.values() if x.enabled]
@@ -132,17 +159,11 @@ class Collector(commands.GroupCog):
                 emote = str(emoji)
             else:
                 emote = "N/A"
-            # if you want the Rarity to only show full numbers like 1 or 12 use the code part here:
-            # rarity = int(collectible.rarity)
-            # otherwise you want to display numbers like 1.5, 5.3, 76.9 use the normal part.
-            if settings.bot_name == "dragonballdex":
-                rarity1 = int(round((((500 * collectible.rarity) + 3245) / 116), -1))
-            else:
-                rarity1 = int(round((((235 * collectible.rarity) + 3245) / 116), -1))
+            rarity1 = int(int((gradient*(collectible.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
 
             entry = (name, f"{emote} Amount required: {rarity1}")
             entries.append(entry)
-        # This is the number of countryballs who are displayed at one page,
+        # This is the number of countryballs which are displayed at one page,
         # you can change this, but keep in mind: discord has an embed size limit.
         per_page = 5
 
@@ -150,7 +171,7 @@ class Collector(commands.GroupCog):
         source.embed.description = (
             f"__**{settings.bot_name} Collector Card List**__"
         )
-        source.embed.colour = discord.Colour.blurple()
+        source.embed.colour = discord.Colour.from_rgb(190,100,190)
         source.embed.set_author(
             name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
         )
@@ -159,4 +180,107 @@ class Collector(commands.GroupCog):
         await pages.start(
             ephemeral=True,
         )
-          
+
+    @ccadmin.command(name="check")
+    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    @app_commands.choices(
+        option=[
+            app_commands.Choice(name="Show all CCs", value="ALL"),
+            app_commands.Choice(name="Show only unmet CCs", value="UNMET"),
+            app_commands.Choice(name="Delete all unmet CCs", value="DELETE"), # must have full admin perm
+        ]
+    )
+    async def check(self, interaction: discord.Interaction["BallsDexBot"], option: str):
+        """
+        Check for unmet Collector Cards
+        """
+        if option == "DELETE":
+            fullperm = False
+            for i in settings.root_role_ids:
+                if interaction.guild.get_role(i) in interaction.user.roles:
+                    fullperm = True
+            if fullperm == False:
+                return await interaction.response.send_message(f"You do not have permission to delete {settings.plural_collectible_name}", ephemeral=True)
+        filters = {}
+        collectorspecial = [x for x in specials.values() if x.name == "Collector"][0]
+        filters["special"] = collectorspecial
+        ballcount = await BallInstance.filter(**filters).count()
+        count = 0
+        entries = []
+        ballslist = []
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        while ballcount != 0:
+            try:
+                count += 1
+                ball = await BallInstance.get(id=count).prefetch_related(
+                    "player","special","ball"
+                )
+                if ball.special == collectorspecial:
+                    player = await self.bot.fetch_user(int(f"{ball.player}"))
+                    ballcount -= 1
+                    checkfilter = {}
+                    checkfilter["player__discord_id"] = int(f"{ball.player}")
+                    checkfilter["ball"] = ball.ball
+                    checkballs = await BallInstance.filter(**checkfilter).count()
+                    if checkballs == 1:
+                        collectiblename = settings.collectible_name
+                    else:
+                        collectiblename = settings.plural_collectible_name
+                    meetcheck = (f"{player} has **{checkballs}** {ball.ball} {collectiblename}")
+                    if checkballs >= int(int((gradient*(ball.ball.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption):
+                        meet = (f"**Enough to maintain ✅**\n---")
+                        if option == "ALL":
+                            entry = (ball.description(short=True, include_emoji=True, bot=self.bot), f"{player}({ball.player})\n{meetcheck}\n{meet}")
+                            entries.append(entry)
+                    else:
+                        meet = (f"**Not enough to maintain** ⚠️\n---")
+                        entry = (ball.description(short=True, include_emoji=True, bot=self.bot), f"{player}({ball.player})\n{meetcheck}\n{meet}")
+                        entries.append(entry)
+                        if option == "DELETE":
+                            ballslist.append(ball)
+            except DoesNotExist:
+                pass
+        if len(entries) == 0:
+            return await interaction.followup.send("No collector cards!")
+        if option == "DELETE":
+            unmetballs = ""
+            for b in ballslist:
+                player = await self.bot.fetch_user(int(f"{b.player}"))
+                unmetballs+=(f"{player}'s {b}\n")
+            with open("unmetccs.txt", "w") as file:
+                file.write(unmetballs)
+            with open("unmetccs.txt", "rb") as file:
+                await interaction.followup.send(f"The following collector cards will be deleted for no longer having enough {settings.plural_collectible_name} each to maintain them:",file=discord.File(file, "unmetccs.txt"),ephemeral=True)
+            view = ConfirmChoiceView(
+                interaction,
+                accept_message=f"Confirmed, deleting...",
+                cancel_message="Request cancelled.",
+            )
+            unmetcount = len(ballslist)
+            await interaction.followup.send(f"Are you sure you want to delete {unmetcount} collector card(s)?\nThis cannot be undone.",view=view,ephemeral=True)
+            await view.wait()
+            if not view.value:
+                return
+            for b in ballslist:
+                await b.delete()
+            if checkballs == 1:
+                collectiblename1 = settings.collectible_name
+            else:
+                collectiblename1 = settings.plural_collectible_name
+            await interaction.followup.send(f"{unmetcount} collector card {collectiblename1} has been deleted successfully.",ephemeral=True)
+            await log_action(
+                f"{interaction.user} has deleted {unmetcount} collector card {collectiblename1} for no longer having enough {settings.plural_collectible_name} each to maintain them.",
+                self.bot,
+            )
+            return
+        else:
+            per_page = 5
+
+            source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
+            source.embed.description = (
+                f"__**{settings.bot_name} Collector Card Check**__"
+            )
+            source.embed.colour = discord.Colour.from_rgb(190,100,190)
+
+            pages = Pages(source=source, interaction=interaction, compact=True)
+            await pages.start(ephemeral=True)

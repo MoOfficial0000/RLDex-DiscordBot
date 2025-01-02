@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ballsdex.packages.collector.cog import Collector
+from .cog import Collector
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
