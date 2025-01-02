@@ -129,7 +129,6 @@ class Adminplus(commands.GroupCog):
             self,
             interaction: discord.Interaction["BallsDexBot"],
             special: SpecialEnabledTransform | None = None,
-            shiny: bool | None = None,
     ):
         """
         Show completion of the BallsDex.
@@ -138,12 +137,10 @@ class Adminplus(commands.GroupCog):
         ----------
         special: Special
             The special you want to see the completion of
-        shiny: bool
-            Whether you want to see the completion of shiny countryballs
         """
         user = None
         await interaction.response.defer(thinking=True)
-        extra_text = "shiny " if shiny else "" + f"{special.name} " if special else ""
+        extra_text = f"{special.name} " if special else ""
         if user is not None:
             try:
                 player = await Player.get(discord_id=user_obj.id)
@@ -177,8 +174,6 @@ class Adminplus(commands.GroupCog):
             )
             return
 
-        if shiny is not None:
-            filters["shiny"] = shiny
         owned_countryballs = set(
             x[0]
             for x in await BallInstance.filter(**filters)
@@ -237,9 +232,8 @@ class Adminplus(commands.GroupCog):
 
         source = FieldPageSource(entries, per_page=5, inline=False, clear_description=False)
         special_str = f" ({special.name})" if special else ""
-        shiny_str = " shiny" if shiny else ""
         source.embed.description = (
-            f"{settings.bot_name}{special_str}{shiny_str} progression: "
+            f"{settings.bot_name}{special_str} progression: "
             f"**{round(len(owned_countryballs) / len(bot_countryballs) * 100, 1)}%**"
         )
         source.embed.colour = discord.Colour.blurple()
@@ -532,7 +526,6 @@ class Adminplus(commands.GroupCog):
         countryball: BallTransform,
         user: discord.User,
         special: SpecialTransform | None = None,
-        shiny: bool | None = None,
         health_bonus: int | None = None,
         attack_bonus: int | None = None,
     ):
@@ -544,8 +537,6 @@ class Adminplus(commands.GroupCog):
         countryball: Ball
         user: discord.User
         special: Special | None
-        shiny: bool
-            Omit this to make it random.
         health_bonus: int | None
             Omit this to make it random.
         attack_bonus: int | None
@@ -556,7 +547,7 @@ class Adminplus(commands.GroupCog):
             return
         if countryball.tradeable == False:
             return await interaction.response.send_message(f"You do not have permission to give this {settings.collectible_name}", ephemeral=True)
-        paintarray = ["Mythical","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
+        paintarray = ["Shiny","Mythical","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
         if special != None:
             if str(special) not in paintarray:
                 return await interaction.response.send_message("You do not have permission to give this special",ephemeral=True)
@@ -566,7 +557,6 @@ class Adminplus(commands.GroupCog):
         instance = await BallInstance.create(
             ball=countryball,
             player=player,
-            shiny=(shiny if shiny is not None else random.randint(1, 2048) == 1),
             attack_bonus=(
                 attack_bonus
                 if attack_bonus is not None
@@ -583,13 +573,11 @@ class Adminplus(commands.GroupCog):
             f"`{countryball.country}` {settings.collectible_name} was successfully given to "
             f"`{user}`.\nSpecial: `{special.name if special else None}` • ATK: "
             f"`{instance.attack_bonus:+d}` • HP:`{instance.health_bonus:+d}` "
-            f"• Shiny: `{instance.shiny}`"
         )
         await log_action(
             f"{interaction.user} gave {settings.collectible_name} "
             f"{countryball.country} to {user}. (Special={special.name if special else None} "
             f"ATK={instance.attack_bonus:+d} HP={instance.health_bonus:+d} "
-            f"shiny={instance.shiny}).",
             self.bot,
         )
 
@@ -600,7 +588,6 @@ class Adminplus(commands.GroupCog):
         interaction: discord.Interaction,
         user: discord.User | None = None,
         ball: BallTransform | None = None,
-        shiny: bool | None = None,
         special: SpecialTransform | None = None,
     ):
         """
@@ -611,7 +598,6 @@ class Adminplus(commands.GroupCog):
         user: discord.User
             The user you want to count the balls of.
         ball: Ball
-        shiny: bool
         special: Special
         """
         if interaction.response.is_done():
@@ -619,8 +605,6 @@ class Adminplus(commands.GroupCog):
         filters = {}
         if ball:
             filters["ball"] = ball
-        if shiny is not None:
-            filters["shiny"] = shiny
         if special:
             filters["special"] = special
         if user:
@@ -630,15 +614,14 @@ class Adminplus(commands.GroupCog):
         country = f"{ball.country} " if ball else ""
         plural = "s" if balls > 1 or balls == 0 else ""
         special_str = f"{special.name} " if special else ""
-        shiny_str = "shiny " if shiny else ""
         if user:
             await interaction.followup.send(
-                f"{user} has {balls} {special_str}{shiny_str}"
+                f"{user} has {balls} {special_str}"
                 f"{country}{settings.collectible_name}{plural}."
             )
         else:
             await interaction.followup.send(
-                f"There are {balls} {special_str}{shiny_str}"
+                f"There are {balls} {special_str}"
                 f"{country}{settings.collectible_name}{plural}."
             )
 
@@ -648,7 +631,6 @@ class Adminplus(commands.GroupCog):
         self,
         interaction: discord.Interaction,
         user: discord.User | None = None,
-        shiny: bool | None = None,
         special: SpecialTransform | None = None,):
         # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
         """
@@ -658,7 +640,6 @@ class Adminplus(commands.GroupCog):
         ----------
         user: discord.User
             The user you want to count the balls of.
-        shiny: bool
         special: Special
         """
         # Filter enabled collectibles
@@ -690,8 +671,6 @@ class Adminplus(commands.GroupCog):
 
             filters = {}
             filters["ball"] = collectible
-            if shiny is not None:
-                filters["shiny"] = shiny
             if special:
                 filters["special"] = special
             if user:
@@ -712,22 +691,21 @@ class Adminplus(commands.GroupCog):
         # you can change this, but keep in mind: discord has an embed size limit.
         per_page = 5
         special_str = f" ({special.name})" if special else ""
-        shiny_str = " shiny" if shiny else ""
         if nothingcheck == "":
             if user:
                 return await interaction.response.send_message(
-                    f"{user} has no {special_str}{shiny_str} {settings.plural_collectible_name} yet.",
+                    f"{user} has no {special_str} {settings.plural_collectible_name} yet.",
                     ephemeral=True,
                 )
             else:
                 return await interaction.response.send_message(
-                    f"There are no {special_str}{shiny_str} {settings.plural_collectible_name} yet.",
+                    f"There are no {special_str} {settings.plural_collectible_name} yet.",
                     ephemeral=True,
                 )
         else:
             source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
             source.embed.description = (
-                f"__**{settings.bot_name}{special_str}{shiny_str} count**__"
+                f"__**{settings.bot_name}{special_str} count**__"
             )
             source.embed.colour = discord.Colour.blurple()
             source.embed.set_author(
