@@ -417,12 +417,12 @@ class Boss(commands.GroupCog):
         self.balls.append(ball)
         self.usersinround.append([int(interaction.user.id),self.round])
         if settings.bot_name == "dragonballdex":
-            maxvalue = 180000
-            shinyvalue = 20000
-            mythicalvalue = 50000
-            bossvalue = 30000
-            eventvalue1 = 10000
-            eventvalue2 = 7000
+            maxvalue = 200000
+            shinyvalue = 50000
+            mythicalvalue = 100000
+            bossvalue = 60000
+            eventvalue1 = 25000
+            eventvalue2 = 15000
         else:
             maxvalue = 14000
             shinyvalue = 5000
