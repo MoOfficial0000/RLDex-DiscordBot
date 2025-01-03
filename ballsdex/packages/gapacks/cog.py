@@ -122,7 +122,6 @@ class gaPacks(commands.Cog):
     async def count_list(
             self,
             interaction: discord.Interaction,
-            shiny: bool | None = None,
             special: SpecialTransform | None = None, ):
         # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
         """
@@ -130,7 +129,6 @@ class gaPacks(commands.Cog):
 
         Parameters
         ----------
-        shiny: bool
         special: Special
         """
         # Filter enabled collectibles
@@ -163,8 +161,6 @@ class gaPacks(commands.Cog):
             filters = {}
             filters["ball"] = collectible
             filters["player__discord_id"] = interaction.user.id
-            if shiny is not None:
-                filters["shiny"] = shiny
             if special:
                 filters["special"] = special
 
@@ -183,16 +179,15 @@ class gaPacks(commands.Cog):
         # you can change this, but keep in mind: discord has an embed size limit.
         per_page = 5
         special_str = f" ({special.name})" if special else ""
-        shiny_str = " shiny" if shiny else ""
         if nothingcheck == "":
             return await interaction.response.send_message(
-                f"You have no {special_str}{shiny_str} {settings.plural_collectible_name} yet.",
+                f"You have no {special_str} {settings.plural_collectible_name} yet.",
                 ephemeral=True,
             )
         else:
             source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
             source.embed.description = (
-                f"__**{settings.bot_name}{special_str}{shiny_str} count**__"
+                f"__**{settings.bot_name}{special_str} count**__"
             )
             source.embed.colour = discord.Colour.blurple()
             source.embed.set_author(
