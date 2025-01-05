@@ -160,7 +160,7 @@ class Collector(commands.GroupCog):
         else:
             if diamond:
                 text0 = "diamond"
-                shinytext = " Shiny"
+                shinytext = " Shiny✨"
             else:
                 text0 = "collector"
                 shinytext = ""
@@ -190,10 +190,10 @@ class Collector(commands.GroupCog):
         entries = []
         if diamond:
             text0 = "Diamond"
-            shinytext = " Shiny"
+            shinytext = "✨Shinies"
         else:
             text0 = "Collector"
-            shinytext = ""
+            shinytext = "Amount"
         for collectible in sorted_collectibles:
             name = f"{collectible.country}"
             emoji = self.bot.get_emoji(collectible.emoji_id)
@@ -207,7 +207,7 @@ class Collector(commands.GroupCog):
             else:
                 rarity1 = int(int((gradient*(collectible.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
             
-            entry = (name, f"{emote}{shinytext} Amount required: {rarity1}")
+            entry = (name, f"{emote}{shinytext} required: {rarity1}")
             entries.append(entry)
         # This is the number of countryballs which are displayed at one page,
         # you can change this, but keep in mind: discord has an embed size limit.
@@ -272,7 +272,7 @@ class Collector(commands.GroupCog):
             checkfilter["ball"] = ball.ball
             if diamond:
                 checkfilter["special"] = [x for x in specials.values() if x.name == "Shiny"][0]
-                shinytext = " Shiny"
+                shinytext = " Shiny✨"
             else:
                 shinytext = ""
             checkballs = await BallInstance.filter(**checkfilter).count()
@@ -397,6 +397,11 @@ class Collector(commands.GroupCog):
             if not view.value:
                 return
             for b in ballslist:
+                player = await self.bot.fetch_user(int(f"{b.player}"))
+                try:
+                    await player.send(f"Your {b.ball} {text0} card has been deleted because you no longer have enough{shiny0} {settings.plural_collectible_name} to maintain it.")
+                except:
+                    pass
                 await b.delete()
             if unmetcount == 1:
                 collectiblename1 = settings.collectible_name
