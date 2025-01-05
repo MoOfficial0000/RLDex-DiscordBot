@@ -122,11 +122,11 @@ class Collector(commands.GroupCog):
         if checkcounter >= 1:
             if diamond:
                 return await interaction.followup.send(
-                    f"You already have a {countryball.country} diamond ball."
+                    f"You already have a {countryball.country} diamond card."
                 )
             else:
                 return await interaction.followup.send(
-                    f"You already have a {countryball.country} collector ball."
+                    f"You already have a {countryball.country} collector card."
                 )
         filters["player__discord_id"] = interaction.user.id
         if diamond:
