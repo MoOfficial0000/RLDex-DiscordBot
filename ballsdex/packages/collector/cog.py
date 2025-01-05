@@ -60,10 +60,16 @@ RoundingOption = 10
 # if T1Req is less than RoundingOption it will be rounded down to 0, (That's just how integer conversions work in python unfortunately)
 
 #Same thing but for diamond
-dT1Req = 3
-dT1Rarity = 1
-dCommonReq = 10
-dCommonRarity = 62
+if settings.bot_name == "dragonballdex":
+    dT1Req = 3
+    dT1Rarity = 1
+    dCommonReq = 10
+    dCommonRarity = 62
+else:
+    dT1Req = 3
+    dT1Rarity = 1
+    dCommonReq = 10
+    dCommonRarity = 233
 dRoundingOption = 1 
 
 log = logging.getLogger("ballsdex.packages.collector.cog")
