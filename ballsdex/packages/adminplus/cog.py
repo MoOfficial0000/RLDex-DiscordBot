@@ -55,19 +55,6 @@ log = logging.getLogger("ballsdex.packages.adminplus.cog")
 FILENAME_RE = re.compile(r"^(.+)(\.\S+)$")
 
 
-async def save_file(attachment: discord.Attachment) -> Path:
-    path = Path(f"./static/uploads/{attachment.filename}")
-    match = FILENAME_RE.match(attachment.filename)
-    if not match:
-        raise TypeError("The file you uploaded lacks an extension.")
-    i = 1
-    while path.exists():
-        path = Path(f"./static/uploads/{match.group(1)}-{i}{match.group(2)}")
-        i = i + 1
-    await attachment.save(path)
-    return path
-
-
 @app_commands.guilds(*settings.admin_guild_ids)
 @app_commands.default_permissions(administrator=True)
 class Adminplus(commands.GroupCog):
@@ -77,10 +64,6 @@ class Adminplus(commands.GroupCog):
 
     def __init__(self, bot: "BallsDexBot"):
         self.bot = bot
-        if not self.bot.intents.members:
-            self.__cog_app_commands_group__.get_command("privacy").parameters[  # type: ignore
-                0
-            ]._Parameter__parent.choices.pop()  # type: ignore
         self.blacklist.parent = self.__cog_app_commands_group__
         self.balls.parent = self.__cog_app_commands_group__
 
@@ -93,35 +76,6 @@ class Adminplus(commands.GroupCog):
     )
     logs = app_commands.Group(name="logs", description="Bot logs management")
     history = app_commands.Group(name="history", description="Trade history management")
-
-    @app_commands.command()
-    @app_commands.checks.has_any_role(*settings.root_role_ids)
-    @app_commands.choices(
-        policy=[
-            app_commands.Choice(name="Open Inventory", value=PrivacyPolicy.ALLOW),
-            app_commands.Choice(name="Private Inventory", value=PrivacyPolicy.DENY),
-            app_commands.Choice(name="Same Server", value=PrivacyPolicy.SAME_SERVER),
-        ]
-    )
-    async def privacy(self, interaction: discord.Interaction, policy: PrivacyPolicy):
-        """
-        Set the bot's privacy policy.
-        """
-        if policy == PrivacyPolicy.SAME_SERVER and not self.bot.intents.members:
-            await interaction.response.send_message(
-                "I need the `members` intent to use this policy.", ephemeral=True
-            )
-            return
-        if settings.bot_name == "dragonballdex":
-            botuserid = 1293338035500351538
-        else:
-            botuserid = 1237889057330303057
-        player, _ = await PlayerModel.get_or_create(discord_id=botuserid)
-        player.privacy_policy = policy
-        await player.save()
-        await interaction.response.send_message(
-            f"The bot's privacy policy has been set to **{policy.name}**.", ephemeral=True
-        )
 
     @app_commands.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
@@ -304,61 +258,6 @@ class Adminplus(commands.GroupCog):
             ephemeral=True,
         )
 
-    @app_commands.command()
-    @app_commands.checks.has_any_role(*settings.root_role_ids)
-    async def rarity(self, interaction: discord.Interaction["BallsDexBot"], chunked: bool = True):
-        # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
-        """
-        Show the ACTUAL rarities of the dex - made by GamingadlerHD
-        """
-        # Filter enabled collectibles
-        enabled_collectibles = [x for x in balls.values() if x.enabled]
-
-        if not enabled_collectibles:
-            await interaction.response.send_message(
-                f"There are no collectibles registered in {settings.bot_name} yet.",
-                ephemeral=True,
-            )
-            return
-
-        # Sort collectibles by rarity in ascending order
-        sorted_collectibles = sorted(enabled_collectibles, key=lambda x: x.rarity)
-
-        entries = []
-
-        for collectible in sorted_collectibles:
-            name = f"{collectible.country}"
-            emoji = self.bot.get_emoji(collectible.emoji_id)
-
-            if emoji:
-                emote = str(emoji)
-            else:
-                emote = "N/A"
-            # if you want the Rarity to only show full numbers like 1 or 12 use the code part here:
-            # rarity = int(collectible.rarity)
-            # otherwise you want to display numbers like 1.5, 5.3, 76.9 use the normal part.
-            rarity = collectible.rarity
-
-            entry = (name, f"{emote} Rarity: {rarity}")
-            entries.append(entry)
-        # This is the number of countryballs who are displayed at one page,
-        # you can change this, but keep in mind: discord has an embed size limit.
-        per_page = 5
-
-        source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
-        source.embed.description = (
-            f"__**{settings.bot_name} rarity**__"
-        )
-        source.embed.colour = discord.Colour.blurple()
-        source.embed.set_author(
-            name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
-        )
-
-        pages = Pages(source=source, interaction=interaction, compact=True)
-        await pages.start(
-            ephemeral=True,
-        )
-
     async def _spawn_bomb(
             self,
             interaction: discord.Interaction,
@@ -505,10 +404,12 @@ class Adminplus(commands.GroupCog):
         plushp = ""
         shinyrng = random.randint(0,100)
         mythicalrng = random.randint(0,100)
-        atkrng = random.randint(-10, 10)*10
+        tenthatk = int(settings.max_attack_bonus/10)
+        tenthhp = int(settings.max_health_bonus/10)
+        atkrng = random.randint(-1*tenthatk, tenthatk)*10
         if atkrng >= 0:
             plusatk = "+"
-        hprng = random.randint(-10, 10)*10
+        hprng = random.randint(-1*tenthhp, tenthhp)*10
         if hprng >= 0:
             plushp = "+"
         if shinyrng <= (shiny_percentage):
@@ -580,50 +481,6 @@ class Adminplus(commands.GroupCog):
             f"ATK={instance.attack_bonus:+d} HP={instance.health_bonus:+d}).",
             self.bot,
         )
-
-    @balls.command(name="count")
-    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
-    async def balls_count(
-        self,
-        interaction: discord.Interaction,
-        user: discord.User | None = None,
-        ball: BallTransform | None = None,
-        special: SpecialTransform | None = None,
-    ):
-        """
-        Count the number of balls that a player has or how many exist in total.
-
-        Parameters
-        ----------
-        user: discord.User
-            The user you want to count the balls of.
-        ball: Ball
-        special: Special
-        """
-        if interaction.response.is_done():
-            return
-        filters = {}
-        if ball:
-            filters["ball"] = ball
-        if special:
-            filters["special"] = special
-        if user:
-            filters["player__discord_id"] = user.id
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        balls = await BallInstance.filter(**filters).count()
-        country = f"{ball.country} " if ball else ""
-        plural = "s" if balls > 1 or balls == 0 else ""
-        special_str = f"{special.name} " if special else ""
-        if user:
-            await interaction.followup.send(
-                f"{user} has {balls} {special_str}"
-                f"{country}{settings.collectible_name}{plural}."
-            )
-        else:
-            await interaction.followup.send(
-                f"There are {balls} {special_str}"
-                f"{country}{settings.collectible_name}{plural}."
-            )
 
     @app_commands.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
