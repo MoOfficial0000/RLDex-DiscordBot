@@ -51,11 +51,16 @@ class gaPacks(commands.Cog):
         return
     
     @app_commands.command()
-    @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
-    async def rarity_list(self, interaction: discord.Interaction):
+    @app_commands.checks.cooldown(1, 10, key=lambda i: i.user.id)
+    async def rarity_list(self, interaction: discord.Interaction, countryball: BallEnabledTransform | None = None):
         # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
         """
         Show the rarities of the dex - made by GamingadlerHD
+
+        Parameters
+        ----------
+        countryball: Ball | None
+            The countryball you want to view it's rarity. Shows full list if not specified.
         """
         # Filter enabled collectibles
         enabled_collectibles = [x for x in balls.values() if x.enabled]
@@ -94,9 +99,14 @@ class gaPacks(commands.Cog):
 
             entry = (name, f"{emote} Rarity: {rarity}")
             entries.append(entry)
+            if collectible == countryball:
+                return await interaction.response.send_message(
+                    f"**{name}**\n{emote} Rarity: {rarity}",
+                    ephemeral=True,
+                )
         # This is the number of countryballs who are displayed at one page,
         # you can change this, but keep in mind: discord has an embed size limit.
-        per_page = 5
+        per_page = 10
 
         source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
         source.embed.description = (
