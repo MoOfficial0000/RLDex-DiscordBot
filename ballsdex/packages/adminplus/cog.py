@@ -72,7 +72,7 @@ class Adminplus(commands.GroupCog):
         name="blacklistguild", description="Guild blacklist management"
     )
     balls = app_commands.Group(
-        name=settings.players_group_cog_name, description="Balls management"
+        name=settings.plural_collectible_name, description="Balls management"
     )
     logs = app_commands.Group(name="logs", description="Bot logs management")
     history = app_commands.Group(name="history", description="Trade history management")
