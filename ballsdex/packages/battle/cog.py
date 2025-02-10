@@ -484,10 +484,13 @@ class Battle(commands.GroupCog):
         attack = "{:+}".format(countryball.attack_bonus)
         health = "{:+}".format(countryball.health_bonus)
 
-        await interaction.response.send_message(
-            f"Added `#{countryball.id} {countryball.countryball.country} ({attack}%/{health}%)`!",
-            ephemeral=True,
-        )
+        try:
+            await interaction.response.send_message(
+                f"Added `#{countryball.id} {countryball.countryball.country} ({attack}%/{health}%)`!",
+                ephemeral=True,
+            )
+        except:
+            return
 
     @app_commands.command()
     async def remove(
@@ -511,10 +514,13 @@ class Battle(commands.GroupCog):
         attack = "{:+}".format(countryball.attack_bonus)
         health = "{:+}".format(countryball.health_bonus)
 
-        await interaction.response.send_message(
-            f"Removed `#{countryball.id} {countryball.countryball.country} ({attack}%/{health}%)`!",
-            ephemeral=True,
-        )
+        try:
+            await interaction.response.send_message(
+                f"Removed `#{countryball.id} {countryball.countryball.country} ({attack}%/{health}%)`!",
+                ephemeral=True,
+            )
+        except:
+            return
     
     @bulk.command(name="add")
     async def bulk_add(
