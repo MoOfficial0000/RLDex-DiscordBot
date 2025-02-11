@@ -394,11 +394,19 @@ class Battle(commands.GroupCog):
                 buff = 0
             else:
                 buff = 1000
+            if countryball.health < 0:
+                countryballhealth = 0
+            else:
+                countryballhealth = countryball.health
+            if countryball.attack < 0:
+                countryballattack = 0
+            else:
+                countryballattack = countryball.attack
             ball = BattleBall(
                 countryball.description(short=True, include_emoji=False, bot=self.bot),
                 interaction.user.name,
-                (countryball.health + buff),
-                (countryball.attack + buff),
+                (countryballhealth + buff),
+                (countryballattack + buff),
                 self.bot.get_emoji(countryball.countryball.emoji_id),
             )
 
@@ -482,11 +490,19 @@ class Battle(commands.GroupCog):
                 buff = 0
             else:
                 buff = 1000
+            if countryball.health < 0:
+                countryballhealth = 0
+            else:
+                countryballhealth = countryball.health
+            if countryball.attack < 0:
+                countryballattack = 0
+            else:
+                countryballattack = countryball.attack
             ball = BattleBall(
                 countryball.description(short=True, include_emoji=False, bot=self.bot),
                 interaction.user.name,
-                (countryball.health + buff),
-                (countryball.attack + buff),
+                (countryballhealth + buff),
+                (countryballattack + buff),
                 self.bot.get_emoji(countryball.countryball.emoji_id),
             )
 
