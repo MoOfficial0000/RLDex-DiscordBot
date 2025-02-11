@@ -22,6 +22,7 @@ from ballsdex.settings import settings
 from ballsdex.core.utils.transformers import (
     BallInstanceTransform,
     BallTransform,
+    BallEnabledTransform,
     SpecialEnabledTransform
 )
 
@@ -549,6 +550,11 @@ class Battle(commands.GroupCog):
         countryball: Ball
             The countryball you want to add.
         """
+        if not countryball.is_tradeable:
+            await interaction.response.send_message(
+                f"You cannot use this {settings.collectible_name}.", ephemeral=True
+            )
+            return
         async for dupe in self.add_balls(interaction, [countryball]):
             if dupe:
                 await interaction.response.send_message(
@@ -600,7 +606,7 @@ class Battle(commands.GroupCog):
     
     @bulk.command(name="add")
     async def bulk_add(
-        self, interaction: discord.Interaction, countryball: BallTransform
+        self, interaction: discord.Interaction, countryball: BallEnabledTransform
     ):
         """
         Adds countryballs to a battle in bulk.
@@ -625,7 +631,7 @@ class Battle(commands.GroupCog):
                 ephemeral=True,
             )
         except:
-            await interaction.followup.send(f"You aren't a part of a battle!",ephemeral=True)
+            await interaction.followup.send(f"An error occured, please make sure you're in an active battle and try again.",ephemeral=True)
 
     @bulk.command(name="all")
     async def bulk_all(
@@ -637,7 +643,10 @@ class Battle(commands.GroupCog):
         try:
             await interaction.response.defer(ephemeral=True, thinking=True)
             player, _ = await Player.get_or_create(discord_id=interaction.user.id)
-            balls = await BallInstance.filter(player=player)
+            filters = {}
+            filters["player__discord_id"] = interaction.user.id
+            filters["ball__tradeable"] = True
+            balls = await BallInstance.filter(**filters)
 
             count = 0
             async for dupe in self.add_balls(interaction, balls):
@@ -648,7 +657,7 @@ class Battle(commands.GroupCog):
 
             await interaction.followup.send(f"Added {count} {name}!", ephemeral=True)
         except:
-            await interaction.followup.send(f"You aren't a part of a battle!",ephemeral=True)
+            await interaction.followup.send(f"An error occured, please make sure you're in an active battle and try again.",ephemeral=True)
         
     @bulk.command(name="clear")
     async def bulk_remove(
@@ -670,11 +679,11 @@ class Battle(commands.GroupCog):
             name = settings.plural_collectible_name if count != 1 else settings.collectible_name
             await interaction.followup.send(f"Removed {count} {name}!", ephemeral=True)
         except:
-            await interaction.followup.send(f"You aren't a part of a battle!",ephemeral=True)
+            await interaction.followup.send(f"An error occured, please make sure you're in an active battle and try again.",ephemeral=True)
 
     @bulk.command(name="remove")
     async def bulk_remove(
-        self, interaction: discord.Interaction, countryball: BallTransform
+        self, interaction: discord.Interaction, countryball: BallEnabledTransform
     ):
         """
         Removes countryballs from a battle in bulk.
@@ -698,4 +707,4 @@ class Battle(commands.GroupCog):
                 ephemeral=True,
             )
         except:
-            await interaction.followup.send(f"You aren't a part of a battle!",ephemeral=True)
+            await interaction.followup.send(f"An error occured, please make sure you're in an active battle and try again.",ephemeral=True)
