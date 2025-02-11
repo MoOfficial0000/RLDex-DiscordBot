@@ -368,7 +368,7 @@ class Battle(commands.GroupCog):
             else guild_battle.battle.p2_balls
         )
         # Create the BattleBall instance
-
+        maxvalue = 200000 if settings.bot_name == "dragonballdex" else 14000
         for countryball in countryballs:
             battlespecial = await countryball.special
             battlespecial = (f"{battlespecial}")
@@ -396,10 +396,14 @@ class Battle(commands.GroupCog):
                 buff = 1000
             if countryball.health < 0:
                 countryballhealth = 0
+            elif countryball.health > maxvalue:
+                countryballhealth = maxvalue
             else:
                 countryballhealth = countryball.health
             if countryball.attack < 0:
                 countryballattack = 0
+            elif countryball.attack > maxvalue:
+                countryballattack = maxvalue
             else:
                 countryballattack = countryball.attack
             ball = BattleBall(
@@ -465,6 +469,7 @@ class Battle(commands.GroupCog):
         )
         # Create the BattleBall instance
 
+        maxvalue = 200000 if settings.bot_name == "dragonballdex" else 14000
         for countryball in countryballs:
             battlespecial = await countryball.special
             battlespecial = (f"{battlespecial}")
@@ -492,10 +497,14 @@ class Battle(commands.GroupCog):
                 buff = 1000
             if countryball.health < 0:
                 countryballhealth = 0
+            elif countryball.health > maxvalue:
+                countryballhealth = maxvalue
             else:
                 countryballhealth = countryball.health
             if countryball.attack < 0:
                 countryballattack = 0
+            elif countryball.attack > maxvalue:
+                countryballattack = maxvalue
             else:
                 countryballattack = countryball.attack
             ball = BattleBall(
