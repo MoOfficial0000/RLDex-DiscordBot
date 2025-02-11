@@ -542,10 +542,13 @@ class Battle(commands.GroupCog):
             if not dupe:
                 count += 1
 
-        await interaction.response.send_message(
-            f'Added {count} {countryball.country}{"s" if count != 1 else ""}!',
-            ephemeral=True,
-        )
+        try:
+            await interaction.response.send_message(
+                f'Added {count} {countryball.country}{"s" if count != 1 else ""}!',
+                ephemeral=True,
+            )
+        except:
+            return
 
     @bulk.command(name="all")
     async def bulk_all(
@@ -564,7 +567,10 @@ class Battle(commands.GroupCog):
 
         name = settings.plural_collectible_name if count != 1 else settings.collectible_name
 
-        await interaction.response.send_message(f"Added {count} {name}!", ephemeral=True)
+        try:
+            await interaction.response.send_message(f"Added {count} {name}!", ephemeral=True)
+        except:
+            return
 
     @bulk.command(name="clear")
     async def bulk_remove(
@@ -583,7 +589,10 @@ class Battle(commands.GroupCog):
 
         name = settings.plural_collectible_name if count != 1 else settings.collectible_name
 
-        await interaction.response.send_message(f"Removed {count} {name}!", ephemeral=True)
+        try:
+            await interaction.response.send_message(f"Removed {count} {name}!", ephemeral=True)
+        except:
+            return
 
     @bulk.command(name="remove")
     async def bulk_remove(
@@ -605,7 +614,10 @@ class Battle(commands.GroupCog):
             if not not_in_battle:
                 count += 1
 
-        await interaction.response.send_message(
-            f'Removed {count} {countryball.country}{"s" if count != 1 else ""}!',
-            ephemeral=True,
-        )
+        try:
+            await interaction.response.send_message(
+                f'Removed {count} {countryball.country}{"s" if count != 1 else ""}!',
+                ephemeral=True,
+            )
+        except:
+            return
