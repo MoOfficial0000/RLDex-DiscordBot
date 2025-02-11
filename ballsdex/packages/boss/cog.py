@@ -428,7 +428,7 @@ class Boss(commands.GroupCog):
             mythicalvalue = 12000
             bossvalue = 6000
             diamondvalue = 8000
-            emeraldvalue = 140000
+            emeraldvalue = 14000
             eventvalue1 = 3000
             eventvalue2 = 2000
         if ball.attack > maxvalue:
