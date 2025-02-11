@@ -69,15 +69,17 @@ def gen_deck(balls) -> str:
     return deck
 
 def update_embed(
-    author_balls, opponent_balls, author, opponent, author_ready, opponent_ready
+    author_balls, opponent_balls, author, opponent, author_ready, opponent_ready, maxallowed
 ) -> discord.Embed:
     """Creates an embed for the battle setup phase."""
+    if maxallowed == 0:
+        maxallowed = "Unlimited"
     embed = discord.Embed(
         title=f"{settings.plural_collectible_name.title()} Battle Plan",
         description=(
             f"Add or remove {settings.plural_collectible_name} you want to propose to the other player using the "
             "'/battle add' and '/battle remove' commands. Once you've finished, "
-            "click the tick button to start the battle."
+            f"click the tick button to start the battle.\nMax amount: {maxallowed}"
         ),
         color=discord.Colour.blurple(),
     )
@@ -141,6 +143,7 @@ class Battle(commands.GroupCog):
 
     def __init__(self, bot: "BallsDexBot"):
         self.bot = bot
+        self.battlerounds = []
 
     bulk = app_commands.Group(
         name='bulk', description='Bulk commands for battle'
@@ -171,7 +174,6 @@ class Battle(commands.GroupCog):
                 return
             new_view = create_disabled_buttons()
             battle_log = "\n".join(gen_battle(guild_battle.battle))
-
             embed = discord.Embed(
                 title=f"{settings.plural_collectible_name.title()} Battle Plan",
                 description=f"Battle between {guild_battle.author.mention} and {guild_battle.opponent.mention}",
@@ -204,6 +206,10 @@ class Battle(commands.GroupCog):
                 ],
             )
             battles.pop(battles.index(guild_battle))
+            for bround in self.battlerounds:
+                if interaction.user.id in bround:
+                    self.battlerounds.remove(bround)
+                    break
         else:
             # One player is ready, waiting for the other player
 
@@ -219,13 +225,18 @@ class Battle(commands.GroupCog):
                 if interaction.user == guild_battle.opponent
                 else ""
             )
-
+            for bround in self.battlerounds:
+                if interaction.user.id in bround:
+                    maxallowed = bround[2]
+                    break
+            if maxallowed == 0:
+                maxallowed = "Unlimited"
             embed = discord.Embed(
                 title=f"{settings.plural_collectible_name.title()} Battle Plan",
                 description=(
                     f"Add or remove {settings.plural_collectible_name} you want to propose to the other player using the "
                     "'/battle add' and '/battle remove' commands. Once you've finished, "
-                    "click the tick button to start the battle."
+                    f"click the tick button to start the battle.\nMax amount: {maxallowed}"
                 ),
                 color=discord.Colour.blurple(),
             )
@@ -275,9 +286,13 @@ class Battle(commands.GroupCog):
 
         await interaction.message.edit(embed=embed, view=create_disabled_buttons())
         battles.pop(battles.index(guild_battle))
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                self.battlerounds.remove(bround)
+                break
 
     @app_commands.command()
-    async def start(self, interaction: discord.Interaction, opponent: discord.Member):
+    async def start(self, interaction: discord.Interaction, opponent: discord.Member, max_amount: int | None = 0):
         """
         Starts a battle with a chosen user.
 
@@ -311,8 +326,9 @@ class Battle(commands.GroupCog):
             return
         
         battles.append(GuildBattle(interaction, interaction.user, opponent))
-
-        embed = update_embed([], [], interaction.user.name, opponent.name, False, False)
+        self.battlerounds.append([interaction.user.id,opponent.id,max_amount])
+        
+        embed = update_embed([], [], interaction.user.name, opponent.name, False, False, max_amount)
 
         start_button = discord.ui.Button(
             style=discord.ButtonStyle.success, emoji="✔", label="Ready"
@@ -368,6 +384,16 @@ class Battle(commands.GroupCog):
             if interaction.user == guild_battle.author
             else guild_battle.battle.p2_balls
         )
+
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                maxallowed = bround[2]
+                break
+        if len(user_balls) == maxallowed and maxallowed != 0:
+            await interaction.response.send_message(
+                f"You cannot add anymore {settings.plural_collectible_name} as you have already reached the max amount limit!", ephemeral=True
+            )
+            return
         # Create the BattleBall instance
         maxvalue = 200000 if settings.bot_name == "dragonballdex" else 14000
         for countryball in countryballs:
@@ -425,7 +451,6 @@ class Battle(commands.GroupCog):
             yield False
 
         # Update the battle embed for both players
-
         await guild_battle.interaction.edit_original_response(
             embed=update_embed(
                 guild_battle.battle.p1_balls,
@@ -434,6 +459,7 @@ class Battle(commands.GroupCog):
                 guild_battle.opponent.name,
                 guild_battle.author_ready,
                 guild_battle.opponent_ready,
+                maxallowed,
             )
         )
 
@@ -526,7 +552,10 @@ class Battle(commands.GroupCog):
             yield False
 
         # Update the battle embed for both players
-
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                maxallowed = bround[2]
+                break
         await guild_battle.interaction.edit_original_response(
             embed=update_embed(
                 guild_battle.battle.p1_balls,
@@ -535,6 +564,7 @@ class Battle(commands.GroupCog):
                 guild_battle.opponent.name,
                 guild_battle.author_ready,
                 guild_battle.opponent_ready,
+                maxallowed,
             )
         )
 
@@ -558,7 +588,7 @@ class Battle(commands.GroupCog):
         async for dupe in self.add_balls(interaction, [countryball]):
             if dupe:
                 await interaction.response.send_message(
-                    "You cannot add the same ball twice!", ephemeral=True
+                    f"You cannot add the same {settings.collectible_name} twice!", ephemeral=True
                 )
                 return
 
@@ -618,6 +648,12 @@ class Battle(commands.GroupCog):
         """
         try:
             await interaction.response.defer(ephemeral=True, thinking=True)
+            for bround in self.battlerounds:
+                if interaction.user.id in bround:
+                    maxallowed = bround[2]
+                    break
+            if maxallowed != 0:
+                return await interaction.followup.send("Bulk adding is not available when there is a max amount limit!",ephemeral=True)
             player, _ = await Player.get_or_create(discord_id=interaction.user.id)
             balls = await countryball.ballinstances.filter(player=player)
 
@@ -642,6 +678,12 @@ class Battle(commands.GroupCog):
         """
         try:
             await interaction.response.defer(ephemeral=True, thinking=True)
+            for bround in self.battlerounds:
+                if interaction.user.id in bround:
+                    maxallowed = bround[2]
+                    break
+            if maxallowed != 0:
+                return await interaction.followup.send("Bulk adding is not available when there is a max amount limit!",ephemeral=True)
             player, _ = await Player.get_or_create(discord_id=interaction.user.id)
             filters = {}
             filters["player__discord_id"] = interaction.user.id
