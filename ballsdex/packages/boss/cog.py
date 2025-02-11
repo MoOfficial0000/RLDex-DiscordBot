@@ -418,6 +418,8 @@ class Boss(commands.GroupCog):
             shinyvalue = 50000
             mythicalvalue = 100000
             bossvalue = 60000
+            diamondvalue = 80000
+            emeraldvalue = 120000
             eventvalue1 = 25000
             eventvalue2 = 15000
         else:
@@ -425,6 +427,8 @@ class Boss(commands.GroupCog):
             shinyvalue = 5000
             mythicalvalue = 12000
             bossvalue = 6000
+            diamondvalue = 8000
+            emeraldvalue = 140000
             eventvalue1 = 3000
             eventvalue2 = 2000
         if ball.attack > maxvalue:
@@ -465,7 +469,7 @@ class Boss(commands.GroupCog):
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{eventvalue1} ATK and {ballhealth}+{eventvalue1} HP"
             ballhealth += eventvalue1
             ballattack += eventvalue1
-        elif "☀" in messageforuser or "☀️" in messageforuser or "🎃" in messageforuser or "🔵" in messageforuser or "🔴" in messageforuser or "🐉" in messageforuser or "🎄" in messageforuser:
+        elif "☀" in messageforuser or "☀️" in messageforuser or "🎃" in messageforuser or "🔵" in messageforuser or "🔴" in messageforuser or "🐉" in messageforuser or "🎄" in messageforuser or "🧧" in messageforuser:
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{eventvalue2} ATK and {ballhealth}+{eventvalue2} HP"
             ballhealth += eventvalue2
             ballattack += eventvalue2
@@ -473,6 +477,14 @@ class Boss(commands.GroupCog):
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{bossvalue} ATK and {ballhealth}+{bossvalue} HP"
             ballhealth += bossvalue
             ballattack += bossvalue
+        elif "❇️" in messageforuser or "❇" in messageforuser:
+            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{emeraldvalue} ATK and {ballhealth}+{emeraldvalue} HP"
+            ballhealth += emeraldvalue
+            ballattack += emeraldvalue
+        elif "💎" in messageforuser:
+            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{diamondvalue} ATK and {ballhealth}+{diamondvalue} HP"
+            ballhealth += diamondvalue
+            ballattack += diamondvalue
         else:
             pass
             
