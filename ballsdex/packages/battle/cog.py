@@ -1,4 +1,5 @@
 import logging
+import time
 import random
 import sys
 from typing import TYPE_CHECKING, Dict
@@ -23,7 +24,7 @@ from ballsdex.core.utils.transformers import (
     BallInstanceTransform,
     BallTransform,
     BallEnabledTransform,
-    SpecialEnabledTransform
+    SpecialEnabledTransform,
 )
 
 from ballsdex.packages.battle.xe_battle_lib import (
@@ -149,6 +150,10 @@ class Battle(commands.GroupCog):
         name='bulk', description='Bulk commands for battle'
     )
 
+    admin = app_commands.Group(
+        name='admin', description='Admin commands for battle'
+    )
+    
     async def start_battle(self, interaction: discord.Interaction):
         guild_battle = fetch_battle(interaction.user)
 
@@ -300,6 +305,9 @@ class Battle(commands.GroupCog):
         ----------
         opponent: discord.Member
             The user you want to battle.
+
+        max_amount: int | None = 0
+            The maximum amount of characters allowed each.
         """
         if opponent.bot:
             await interaction.response.send_message(
@@ -315,17 +323,19 @@ class Battle(commands.GroupCog):
 
         if fetch_battle(opponent) is not None:
             await interaction.response.send_message(
-                "That user is already in a battle.", ephemeral=True,
+                "That user is already in a battle. They may use `/battle cancel` to cancel it.", ephemeral=True,
             )
             return
 
         if fetch_battle(interaction.user) is not None:
             await interaction.response.send_message(
-                "You are already in a battle.", ephemeral=True,
+                "You are already in a battle. You may use `/battle cancel` to cancel it.", ephemeral=True,
             )
             return
         
         battles.append(GuildBattle(interaction, interaction.user, opponent))
+        if max_amount < 0:
+            max_amount = 0
         self.battlerounds.append([interaction.user.id,opponent.id,max_amount])
         
         embed = update_embed([], [], interaction.user.name, opponent.name, False, False, max_amount)
@@ -636,7 +646,7 @@ class Battle(commands.GroupCog):
     
     @bulk.command(name="add")
     async def bulk_add(
-        self, interaction: discord.Interaction, countryball: BallEnabledTransform
+        self, interaction: discord.Interaction, countryball: BallEnabledTransform | None = None,
     ):
         """
         Adds countryballs to a battle in bulk.
@@ -655,77 +665,32 @@ class Battle(commands.GroupCog):
             if maxallowed != 0:
                 return await interaction.followup.send("Bulk adding is not available when there is a max amount limit!",ephemeral=True)
             player, _ = await Player.get_or_create(discord_id=interaction.user.id)
-            balls = await countryball.ballinstances.filter(player=player)
-
-            count = 0
-            async for dupe in self.add_balls(interaction, balls):
-                if not dupe:
-                    count += 1
-
-            await interaction.followup.send(
-                f'Added {count} {countryball.country}{"s" if count != 1 else ""}!',
-                ephemeral=True,
-            )
-        except:
-            await interaction.followup.send(f"An error occured, please make sure you're in an active battle and try again.",ephemeral=True)
-
-    @bulk.command(name="all")
-    async def bulk_all(
-        self, interaction: discord.Interaction
-    ):
-        """
-        Adds all your countryballs to a battle.
-        """
-        try:
-            await interaction.response.defer(ephemeral=True, thinking=True)
-            for bround in self.battlerounds:
-                if interaction.user.id in bround:
-                    maxallowed = bround[2]
-                    break
-            if maxallowed != 0:
-                return await interaction.followup.send("Bulk adding is not available when there is a max amount limit!",ephemeral=True)
-            player, _ = await Player.get_or_create(discord_id=interaction.user.id)
             filters = {}
             filters["player__discord_id"] = interaction.user.id
             filters["ball__tradeable"] = True
-            balls = await BallInstance.filter(**filters)
+            if countryball:
+                balls = await countryball.ballinstances.filter(player=player)
+            else:
+                balls = await BallInstance.filter(**filters)
 
             count = 0
             async for dupe in self.add_balls(interaction, balls):
                 if not dupe:
                     count += 1
-
-            name = settings.plural_collectible_name if count != 1 else settings.collectible_name
-
-            await interaction.followup.send(f"Added {count} {name}!", ephemeral=True)
-        except:
-            await interaction.followup.send(f"An error occured, please make sure you're in an active battle and try again.",ephemeral=True)
-        
-    @bulk.command(name="clear")
-    async def bulk_remove(
-        self, interaction: discord.Interaction
-    ):
-        """
-        Removes all your countryballs from a battle.
-        """
-        try:
-            await interaction.response.defer(ephemeral=True, thinking=True)
-            player, _ = await Player.get_or_create(discord_id=interaction.user.id)
-            balls = await BallInstance.filter(player=player)
-
-            count = 0
-            async for not_in_battle in self.remove_balls(interaction, balls):
-                if not not_in_battle:
-                    count += 1
-
-            name = settings.plural_collectible_name if count != 1 else settings.collectible_name
-            await interaction.followup.send(f"Removed {count} {name}!", ephemeral=True)
+            if countryball:
+                await interaction.followup.send(
+                    f'Added {count} {countryball.country}{"s" if count != 1 else ""}!',
+                    ephemeral=True,
+                )
+            else:
+                name = settings.plural_collectible_name if count != 1 else settings.collectible_name
+                await interaction.followup.send(f"Added {count} {name}!", ephemeral=True)
         except:
             await interaction.followup.send(f"An error occured, please make sure you're in an active battle and try again.",ephemeral=True)
 
     @bulk.command(name="remove")
     async def bulk_remove(
-        self, interaction: discord.Interaction, countryball: BallEnabledTransform
+        self, interaction: discord.Interaction, countryball: BallEnabledTransform | None = None,
     ):
         """
         Removes countryballs from a battle in bulk.
@@ -738,15 +703,79 @@ class Battle(commands.GroupCog):
         try:
             await interaction.response.defer(ephemeral=True, thinking=True)
             player, _ = await Player.get_or_create(discord_id=interaction.user.id)
-            balls = await countryball.ballinstances.filter(player=player)
-
+            if countryball:
+                balls = await countryball.ballinstances.filter(player=player)
+            else:
+                balls = await BallInstance.filter(player=player)
+                
             count = 0
             async for not_in_battle in self.remove_balls(interaction, balls):
                 if not not_in_battle:
                     count += 1
-            await interaction.followup.send(
-                f'Removed {count} {countryball.country}{"s" if count != 1 else ""}!',
-                ephemeral=True,
-            )
+            if countryball:
+                await interaction.followup.send(
+                    f'Removed {count} {countryball.country}{"s" if count != 1 else ""}!',
+                    ephemeral=True,
+                )
+            else:
+                name = settings.plural_collectible_name if count != 1 else settings.collectible_name
+                await interaction.followup.send(f"Removed {count} {name}!", ephemeral=True)
         except:
             await interaction.followup.send(f"An error occured, please make sure you're in an active battle and try again.",ephemeral=True)
+
+    @app_commands.command()
+    async def cancel(
+        self, interaction: discord.Interaction
+    ):
+        """
+        Cancels the battle you are in.
+
+        Parameters
+        ----------
+        countryball: Ball
+            The countryball you want to remove.
+        """
+        guild_battle = fetch_battle(interaction.user)
+
+        if guild_battle is None:
+            await interaction.response.send_message(
+                "You aren't a part of a battle!", ephemeral=True
+            )
+            return
+
+        try:
+            await interaction.response.defer(ephemeral=True, thinking=True)
+        except discord.errors.InteractionResponded:
+            pass
+
+        battles.pop(battles.index(guild_battle))
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                self.battlerounds.remove(bround)
+                break
+
+        await interaction.followup.send(f"Your current battle has been frozen and cancelled.",ephemeral=True)
+
+    @admin.command(name="clear")
+    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    async def clear(
+        self, interaction: discord.Interaction
+    ):
+        """
+        Cancels all battles.
+
+        Parameters
+        ----------
+        countryball: Ball
+            The countryball you want to remove.
+        """
+        try:
+            await interaction.response.defer(ephemeral=True, thinking=True)
+        except discord.errors.InteractionResponded:
+            pass
+
+        battles.clear()
+        self.battlerounds = []
+
+        await interaction.followup.send(f"All battle have been reset.",ephemeral=True)
+        
