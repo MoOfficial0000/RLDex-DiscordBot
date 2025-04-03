@@ -21,7 +21,7 @@ class BattleInstance:
 
 
 def get_damage(ball):
-    return int(ball.attack * random.uniform(0.8, 1.2))
+    return int(ball.attack * random.uniform(0.8, 1.2) + random.randint(1, 10))
 
 
 def attack(current_ball, enemy_balls):
