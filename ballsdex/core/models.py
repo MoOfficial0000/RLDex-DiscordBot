@@ -125,7 +125,7 @@ class Ball(models.Model):
 
     country = fields.CharField(max_length=48, unique=True, description="Name of this countryball")
     short_name = fields.CharField(
-        max_length=12,
+        max_length=24,
         null=True,
         default=None,
         description="Alternative shorter name to be used in card design, "
@@ -441,6 +441,7 @@ class Player(models.Model):
         description="How you want to handle friend requests",
         default=FriendPolicy.ALLOW,
     )
+    extra_data = fields.JSONField(default=dict)
     balls: fields.BackwardFKRelation[BallInstance]
 
     def __str__(self) -> str:

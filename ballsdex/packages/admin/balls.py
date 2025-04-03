@@ -3,6 +3,7 @@ import logging
 import random
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import discord
 from discord import app_commands
@@ -10,7 +11,7 @@ from discord.utils import format_dt
 from tortoise.exceptions import BaseORMException, DoesNotExist
 
 from ballsdex.core.bot import BallsDexBot
-from ballsdex.core.models import Ball, BallInstance, Player, Trade, TradeObject
+from ballsdex.core.models import Ball, BallInstance, Player, Special, Trade, TradeObject
 from ballsdex.core.utils.buttons import ConfirmChoiceView
 from ballsdex.core.utils.logging import log_action
 from ballsdex.core.utils.transformers import (
@@ -19,8 +20,11 @@ from ballsdex.core.utils.transformers import (
     RegimeTransform,
     SpecialTransform,
 )
-from ballsdex.packages.countryballs.countryball import CountryBall
 from ballsdex.settings import settings
+
+if TYPE_CHECKING:
+    from ballsdex.packages.countryballs.cog import CountryBallsSpawner
+    from ballsdex.packages.countryballs.countryball import CountryBall
 
 log = logging.getLogger("ballsdex.packages.admin.balls")
 FILENAME_RE = re.compile(r"^(.+)(\.\S+)$")
@@ -47,9 +51,13 @@ class Balls(app_commands.Group):
     async def _spawn_bomb(
         self,
         interaction: discord.Interaction[BallsDexBot],
+        countryball_cls: type["CountryBall"],
         countryball: Ball | None,
         channel: discord.TextChannel,
         n: int,
+        special: Special | None = None,
+        atk_bonus: int | None = None,
+        hp_bonus: int | None = None,
     ):
         spawned = 0
 
@@ -74,9 +82,12 @@ class Balls(app_commands.Group):
         try:
             for i in range(n):
                 if not countryball:
-                    ball = await CountryBall.get_random()
+                    ball = await countryball_cls.get_random()
                 else:
-                    ball = CountryBall(countryball)
+                    ball = countryball_cls(countryball)
+                ball.special = special
+                ball.atk_bonus = atk_bonus
+                ball.hp_bonus = hp_bonus
                 result = await ball.spawn(channel)
                 if not result:
                     task.cancel()
@@ -105,6 +116,9 @@ class Balls(app_commands.Group):
         countryball: BallTransform | None = None,
         channel: discord.TextChannel | None = None,
         n: app_commands.Range[int, 1, 100] = 1,
+        special: SpecialTransform | None = None,
+        atk_bonus: int | None = None,
+        hp_bonus: int | None = None,
     ):
         """
         Force spawn a random or specified countryball.
@@ -118,14 +132,39 @@ class Balls(app_commands.Group):
         n: int
             The number of countryballs to spawn. If no countryball was specified, it's random
             every time.
+        special: Special | None
+            Force the countryball to have a special attribute when caught.
+        atk_bonus: int | None
+            Force the countryball to have a specific attack bonus when caught.
+        hp_bonus: int | None
+            Force the countryball to have a specific health bonus when caught.
         """
         # the transformer triggered a response, meaning user tried an incorrect input
         if interaction.response.is_done():
             return
+        cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
+        if not cog:
+            prefix = (
+                settings.prefix
+                if interaction.client.intents.message_content or not interaction.client.user
+                else f"{interaction.client.user.mention} "
+            )
+            # do not replace `countryballs` with `settings.collectible_name`, it is intended
+            await interaction.response.send_message(
+                "The `countryballs` package is not loaded, this command is unavailable.\n"
+                "Please resolve the errors preventing this package from loading. Use "
+                f'"{prefix}reload countryballs" to try reloading it.',
+                ephemeral=True,
+            )
+            return
 
         if n > 1:
             await self._spawn_bomb(
-                interaction, countryball, channel or interaction.channel, n  # type: ignore
+                interaction,
+                cog.countryball_cls,
+                countryball,
+                channel or interaction.channel,  # type: ignore
+                n,
             )
             await log_action(
                 f"{interaction.user} spawned {settings.collectible_name}"
@@ -137,18 +176,29 @@ class Balls(app_commands.Group):
 
         await interaction.response.defer(ephemeral=True, thinking=True)
         if not countryball:
-            ball = await CountryBall.get_random()
+            ball = await cog.countryball_cls.get_random()
         else:
-            ball = CountryBall(countryball)
+            ball = cog.countryball_cls(countryball)
+        ball.special = special
+        ball.atk_bonus = atk_bonus
+        ball.hp_bonus = hp_bonus
         result = await ball.spawn(channel or interaction.channel)  # type: ignore
 
         if result:
             await interaction.followup.send(
                 f"{settings.collectible_name.title()} spawned.", ephemeral=True
             )
+            special_attrs = []
+            if special is not None:
+                special_attrs.append(f"special={special.name}")
+            if atk_bonus is not None:
+                special_attrs.append(f"atk={atk_bonus}")
+            if hp_bonus is not None:
+                special_attrs.append(f"hp={hp_bonus}")
             await log_action(
                 f"{interaction.user} spawned {settings.collectible_name} {ball.name} "
-                f"in {channel or interaction.channel}.",
+                f"in {channel or interaction.channel}"
+                f"{f" ({", ".join(special_attrs)})" if special_attrs else ""}.",
                 interaction.client,
             )
 

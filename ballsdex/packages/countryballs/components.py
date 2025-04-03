@@ -64,8 +64,14 @@ class CountryballNamePrompt(Modal, title=f"Catch this {settings.collectible_name
             possible_names = (self.ball.name.lower(),)
         if self.ball.model.translations:
             possible_names += tuple(x.lower() for x in self.ball.model.translations.split(";"))
-
-        if self.name.value.lower().strip() in possible_names:
+        cname = self.name.value.lower().strip()
+        # Remove fancy unicode characters like ’ to replace to '
+        cname = cname.replace("\u2019", "'")
+        cname = cname.replace("\u2018", "'")
+        cname = cname.replace("\u201C", '"')
+        cname = cname.replace("\u201D", '"')
+        # There are other "fancy" quotes as well but these are most common
+        if cname in possible_names:
             self.ball.caught = True
             ball, has_caught_before = await self.catch_ball(
                 interaction.client, cast(discord.Member, interaction.user)
@@ -100,11 +106,15 @@ class CountryballNamePrompt(Modal, title=f"Catch this {settings.collectible_name
         player, created = await Player.get_or_create(discord_id=user.id)
 
         # stat may vary by +/- 20% of base stat
-        bonus_attack = self.ball.atk_bonus or random.randint(
-            -settings.max_attack_bonus, settings.max_attack_bonus
+        bonus_attack = (
+            self.ball.atk_bonus
+            if self.ball.atk_bonus is not None
+            else random.randint(-settings.max_attack_bonus, settings.max_attack_bonus)
         )
-        bonus_health = self.ball.hp_bonus or random.randint(
-            -settings.max_health_bonus, settings.max_health_bonus
+        bonus_health = (
+            self.ball.hp_bonus
+            if self.ball.hp_bonus is not None
+            else random.randint(-settings.max_health_bonus, settings.max_health_bonus)
         )
 
         # check if we can spawn cards with a special background
