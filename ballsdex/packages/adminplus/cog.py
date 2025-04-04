@@ -386,11 +386,19 @@ class Adminplus(commands.GroupCog):
 
     @balls.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    @app_commands.choices(
+        statsq=[
+            app_commands.Choice(name="Regular stats", value="ONES"),
+            app_commands.Choice(name="Tens stats (10,20,30etc)", value="TENS"),
+            app_commands.Choice(name="No stats", value="NOSTATS")
+        ]
+    )
     async def wheel(
         self,
         interaction: discord.Interaction,
         shiny_percentage: float | None = float(-1),
         mythical_percentage: float | None = float(-1),
+        statsq: str | None = None,
     ):
         """
         Spin the wheel!.
@@ -416,7 +424,13 @@ class Adminplus(commands.GroupCog):
             shinyresult = f"\n***✨ It's a shiny {settings.collectible_name}! ✨***"
         elif mythicalrng <= (mythical_percentage):
             mythicalresult = f"\n*🔮 This {settings.collectible_name} exudes a mythical aura.🔮*"
-        await interaction.followup.send(f"# {ball.name}\n`{plusatk}{atkrng}ATK/{plushp}{hprng}HP`{shinyresult}{mythicalresult}")
+        if statsq == "TENS":
+            statsresults = f"\n`{plusatk}{atkrng}ATK/{plushp}{hprng}HP`"
+        elif statsq == "ONES":
+            statsresults = f"\n`{plusatk}{atkrng+random.randint(0,9)}ATK/{plushp}{hprng+random.randint(0,9)}HP`"
+        else:
+            statsresults = ""
+        await interaction.followup.send(f"# {ball.name}{statsresults}{shinyresult}{mythicalresult}")
 
 
     @balls.command()
