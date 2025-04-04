@@ -39,8 +39,8 @@ if TYPE_CHECKING:
 log = logging.getLogger("ballsdex.packages.battle")
 
 battles = []
-highevent = ("Testers","Birthday Ball","Eid al-Adha","Realm")
-lowevent = ("Lunar New Year 2025","Christmas 2024","Summer")
+highevent = ("Testers","Birthday Ball","Eid al-Adha","Realm","Event Farmer")
+lowevent = ("Lunar New Year 2025","Christmas 2024","Summer","Easter 2025")
 
 @dataclass
 class GuildBattle:
@@ -59,15 +59,31 @@ def gen_deck(balls) -> str:
     """Generates a text representation of the player's deck."""
     if not balls:
         return "Empty"
-    deck = "\n".join(
-        [
-            f"- {ball.emoji} {ball.name} (HP: {ball.health} | ATK: {ball.attack})"
-            for ball in balls
-        ]
-    )
-    if len(deck) > 1024:
-        return deck[0:941] + '\n*truncated due to discord limits, the rest of your '+str(settings.plural_collectible_name)+' are still here*'
-    return deck
+
+    deck_lines = [
+        f"- {ball.emoji} {ball.name} (HP: {ball.health} | DMG: {ball.attack})"
+        for ball in balls
+    ]
+
+    deck = "\n".join(deck_lines)
+
+    if len(deck) <= 1024:
+        return deck
+
+    total_suffix = f"\nTotal: {len(balls)}"
+    suffix_length = len(total_suffix)
+    max_deck_length = 1024 - suffix_length
+    truncated_deck = ""
+    current_length = 0
+    
+    for line in deck_lines:
+        line_length = len(line) + (1 if truncated_deck else 0) 
+        if current_length + line_length > max_deck_length:
+            break
+        truncated_deck += ("\n" if truncated_deck else "") + line
+        current_length += line_length
+    
+    return truncated_deck + total_suffix
 
 def update_embed(
     author_balls, opponent_balls, author, opponent, author_ready, opponent_ready, maxallowed
@@ -405,24 +421,24 @@ class Battle(commands.GroupCog):
             )
             return
         # Create the BattleBall instance
-        maxvalue = 200000 if settings.bot_name == "dragonballdex" else 14000
+        maxvalue = 240000 if settings.bot_name == "dragonballdex" else 14000
         for countryball in countryballs:
             battlespecial = await countryball.special
             battlespecial = (f"{battlespecial}")
             if battlespecial == "Shiny":
-                buff = 50000 if settings.bot_name == "dragonballdex" else 5000
+                buff = 80000 if settings.bot_name == "dragonballdex" else 5000
             elif battlespecial == "Mythical":
-                buff = 100000 if settings.bot_name == "dragonballdex" else 12000
+                buff = 160000 if settings.bot_name == "dragonballdex" else 12000
             elif battlespecial == "Boss" or battlespecial == "Collector":
-                buff = 60000 if settings.bot_name == "dragonballdex" else 6000
+                buff = 100000 if settings.bot_name == "dragonballdex" else 6000
             elif battlespecial == "Diamond":
-                buff = 80000 if settings.bot_name == "dragonballdex" else 8000
+                buff = 120000 if settings.bot_name == "dragonballdex" else 8000
             elif battlespecial == "Emerald":
-                buff = 120000 if settings.bot_name == "dragonballdex" else 14000
+                buff = 200000 if settings.bot_name == "dragonballdex" else 14000
             elif battlespecial in highevent:
-                buff = 25000 if settings.bot_name == "dragonballdex" else 3000
+                buff = 50000 if settings.bot_name == "dragonballdex" else 3000
             elif battlespecial in lowevent:
-                buff = 15000 if settings.bot_name == "dragonballdex" else 2000
+                buff = 30000 if settings.bot_name == "dragonballdex" else 2000
             elif battlespecial == "Gold" or battlespecial == "Titanium White":
                 buff = 1500
             elif battlespecial == "Black":
