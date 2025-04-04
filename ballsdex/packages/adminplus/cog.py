@@ -448,7 +448,7 @@ class Adminplus(commands.GroupCog):
             return
         if countryball.tradeable == False:
             return await interaction.response.send_message(f"You do not have permission to give this {settings.collectible_name}", ephemeral=True)
-        paintarray = ["Shiny","Mythical","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
+        paintarray = ["Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
         if special != None:
             if str(special) not in paintarray:
                 return await interaction.response.send_message("You do not have permission to give this special",ephemeral=True)
