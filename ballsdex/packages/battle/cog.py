@@ -522,24 +522,24 @@ class Battle(commands.GroupCog):
         )
         # Create the BattleBall instance
 
-        maxvalue = 200000 if settings.bot_name == "dragonballdex" else 14000
+        maxvalue = 240000 if settings.bot_name == "dragonballdex" else 14000
         for countryball in countryballs:
             battlespecial = await countryball.special
             battlespecial = (f"{battlespecial}")
             if battlespecial == "Shiny":
-                buff = 50000 if settings.bot_name == "dragonballdex" else 5000
+                buff = 80000 if settings.bot_name == "dragonballdex" else 5000
             elif battlespecial == "Mythical":
-                buff = 100000 if settings.bot_name == "dragonballdex" else 12000
+                buff = 160000 if settings.bot_name == "dragonballdex" else 12000
             elif battlespecial == "Boss" or battlespecial == "Collector":
-                buff = 60000 if settings.bot_name == "dragonballdex" else 6000
+                buff = 100000 if settings.bot_name == "dragonballdex" else 6000
             elif battlespecial == "Diamond":
-                buff = 80000 if settings.bot_name == "dragonballdex" else 8000
+                buff = 120000 if settings.bot_name == "dragonballdex" else 8000
             elif battlespecial == "Emerald":
-                buff = 120000 if settings.bot_name == "dragonballdex" else 14000
+                buff = 200000 if settings.bot_name == "dragonballdex" else 14000
             elif battlespecial in highevent:
-                buff = 25000 if settings.bot_name == "dragonballdex" else 3000
+                buff = 50000 if settings.bot_name == "dragonballdex" else 3000
             elif battlespecial in lowevent:
-                buff = 15000 if settings.bot_name == "dragonballdex" else 2000
+                buff = 30000 if settings.bot_name == "dragonballdex" else 2000
             elif battlespecial == "Gold" or battlespecial == "Titanium White":
                 buff = 1500
             elif battlespecial == "Black":
