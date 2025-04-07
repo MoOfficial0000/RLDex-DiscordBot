@@ -400,7 +400,7 @@ class Boss(commands.GroupCog):
             return await interaction.followup.send(
                 "You did not join, or you're dead/disqualified.", ephemeral=True
             )
-        if not ball.is_tradeable:
+        if not (await countryball.ball).tradeable:
             await interaction.followup.send(
                 f"You cannot use this {settings.collectible_name}.", ephemeral=True
             )
@@ -414,14 +414,14 @@ class Boss(commands.GroupCog):
         self.balls.append(ball)
         self.usersinround.append([int(interaction.user.id),self.round])
         if settings.bot_name == "dragonballdex":
-            maxvalue = 200000
-            shinyvalue = 50000
-            mythicalvalue = 100000
-            bossvalue = 60000
-            diamondvalue = 80000
-            emeraldvalue = 120000
-            eventvalue1 = 25000
-            eventvalue2 = 15000
+            maxvalue = 240000
+            shinyvalue = 80000
+            mythicalvalue = 160000
+            bossvalue = 100000
+            diamondvalue = 120000
+            emeraldvalue = 200000
+            eventvalue1 = 50000
+            eventvalue2 = 30000
         else:
             maxvalue = 14000
             shinyvalue = 5000
@@ -465,11 +465,11 @@ class Boss(commands.GroupCog):
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+1000 ATK and {ballhealth}+1000 HP"
             ballhealth += 1000
             ballattack += 1000
-        elif "🚀" in messageforuser or "🎩" in messageforuser or "🐑" in messageforuser or "🔮" in messageforuser or "🇺🇸" in messageforuser :
+        elif "🚀" in messageforuser or "🎩" in messageforuser or "🐑" in messageforuser or "🔮" in messageforuser or "🇺🇸" in messageforuser or "👨‍🌾" in messageforuser:
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{eventvalue1} ATK and {ballhealth}+{eventvalue1} HP"
             ballhealth += eventvalue1
             ballattack += eventvalue1
-        elif "☀" in messageforuser or "☀️" in messageforuser or "🎃" in messageforuser or "🔵" in messageforuser or "🔴" in messageforuser or "🐉" in messageforuser or "🎄" in messageforuser or "🧧" in messageforuser:
+        elif "☀" in messageforuser or "☀️" in messageforuser or "🎃" in messageforuser or "🔵" in messageforuser or "🔴" in messageforuser or "🐉" in messageforuser or "🎄" in messageforuser or "🧧" in messageforuser or "🧺" in messageforuser:
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{eventvalue2} ATK and {ballhealth}+{eventvalue2} HP"
             ballhealth += eventvalue2
             ballattack += eventvalue2
@@ -579,7 +579,13 @@ class Boss(commands.GroupCog):
         """
         Finish the boss, conclude the Winner
         """
+        if not self.boss_enabled:
+            return await interaction.response.send_message("Boss is disabled.", ephemeral=True)
         await interaction.response.defer(ephemeral=True, thinking=True)
+        if self.lasthitter not in self.users and winner == "LAST":
+            return await interaction.followup.send(
+                f"The last hitter is dead or disqualified.", ephemeral=True
+            )
         self.picking = False
         self.boss_enabled = False
         test = self.usersdamage
