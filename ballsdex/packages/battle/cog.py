@@ -606,7 +606,7 @@ class Battle(commands.GroupCog):
         countryball: Ball
             The countryball you want to add.
         """
-        if not countryball.is_tradeable:
+        if not (await countryball.ball).tradeable:
             await interaction.response.send_message(
                 f"You cannot use this {settings.collectible_name}.", ephemeral=True
             )
