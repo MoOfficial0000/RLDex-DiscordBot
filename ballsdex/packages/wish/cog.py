@@ -2,7 +2,7 @@ import logging
 import time
 import random
 import sys
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING, Dict, cast
 from dataclasses import dataclass, field
 
 import discord
@@ -23,7 +23,7 @@ from ballsdex.core.models import (
 from ballsdex.core.utils.utils import inventory_privacy, is_staff
 from ballsdex.core.models import balls as countryballs
 from ballsdex.settings import settings
-from ballsdex.packages.countryballs.countryball import CountryBall
+from ballsdex.packages.countryballs.cog import CountryBallsSpawner
 
 from ballsdex.core.utils.transformers import (
     BallInstanceTransform,
@@ -409,10 +409,11 @@ class Wish(commands.GroupCog):
             shiny_percentage = 3
             mythical_percentage = 0.6
         if textvalue1 =="":
+            cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
             for i in range(noofrewards):
-                resultball = await CountryBall.get_random()
+                resultball = await cog.countryball_cls.get_random(interaction.client)
                 while f"{resultball.name}" in shenron+porunga+porungadaima+toronbo+supershenron and f"{resultball.name}" not in dragons:
-                    resultball = await CountryBall.get_random()
+                    resultball = await cog.countryball_cls.get_random(interaction.client)
                 shinyresult = ""
                 mythicalresult = ""
                 plusatk = ""
