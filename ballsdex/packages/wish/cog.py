@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 import discord
 from discord import app_commands
 from discord.ext import commands
+from discord import Embed
 
 import asyncio
 import io
@@ -221,7 +222,6 @@ def fetch_battle(user: discord.User | discord.Member):
 
     return found_battle
 
-
 class Wish(commands.GroupCog):
     """
     Wish your Dragon Balls!
@@ -232,8 +232,83 @@ class Wish(commands.GroupCog):
         self.battlerounds = []
 
     admin = app_commands.Group(
-        name='admin', description='Admin commands for battle'
+        name='admin', description='Admin commands for wish'
     )
+
+    dbz = app_commands.Group(
+        name='dbz', description='Completion commands for wish'
+    )
+    async def owned(self, player, character):
+        filters = {}
+        filters["ball"] = [x for x in balls.values() if x.country == f"{character}"][0]
+        filters["player__discord_id"] = player
+        count = await BallInstance.filter(**filters).count()
+        if count == 0:
+            return False
+        else:
+            return True
+        
+    @dbz.command(name="completion")
+    async def completion(self, interaction: discord.Interaction):
+        """
+        Show your dragon ball completion for wishing
+        """
+        await interaction.response.defer()
+        embed = discord.Embed(
+            title=f"Wish Completion",
+            description=f"Dragon Ball completion of {interaction.user.mention}",
+        )
+        embed.color=discord.Colour.from_rgb(0,0,255)
+        embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
+        embed.set_footer(text="Use '/dbz completion' for the full dex completion.")
+
+        fullresult = []
+        fullset = [supershenron,shenron,porunga,porungadaima,toronbo]
+        fullemojis = [supershenron1,shenron1,porunga1,porungadaima1,toronbo1]
+        emojisetcount = 0
+        for dbdnames in fullset:
+            result = ""
+            for n in range(len(dbdnames)):
+                if n-1 == -1:
+                    cutter=dbdnames[n-1]
+                else:
+                    cutter="#"+str(n)
+                if await self.owned(interaction.user.id,dbdnames[n-1]):
+                    result += f"- :white_check_mark:{fullemojis[emojisetcount][dbdnames.index(f'{str(dbdnames[n-1])}')]}{cutter}\n"
+                else:
+                    result += f"- :x:{fullemojis[emojisetcount][dbdnames.index(f'{str(dbdnames[n-1])}')]}{cutter}\n"
+            emojisetcount += 1
+            fullresult.append(result)
+            
+        embed.add_field(
+            name=f"Super Dragon Balls:",
+            value=fullresult[0],
+            inline=True,
+        )
+        embed.add_field(
+            name=f"Earth Dragon Balls:",
+            value=fullresult[1],
+            inline=True,
+        )
+        embed.add_field(
+            name=f"Namekian Dragon Balls:",
+            value=fullresult[2],
+            inline=True,
+        )
+        embed.add_field(
+            name=f"Demon Realm Dragon Balls:",
+            value=fullresult[3],
+            inline=True,
+        )
+        embed.add_field(
+            name=f"Cerealian Dragon Balls:",
+            value=fullresult[4],
+            inline=True,
+        )
+        
+        await interaction.followup.send(
+            embed=embed,
+        )
     
     async def start_battle(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -384,7 +459,7 @@ class Wish(commands.GroupCog):
 
         if guild_battle is None:
             await interaction.response.send_message(
-                "You aren't a part of this battle!", ephemeral=True
+                "That is not your wish!", ephemeral=True
             )
             return
 
@@ -440,7 +515,7 @@ class Wish(commands.GroupCog):
         """
         if fetch_battle(interaction.user) is not None:
             await interaction.response.send_message(
-                "You are already in a battle. You may use `/battle cancel` to cancel it.", ephemeral=True,
+                "You are already wishing. You may use `/wish cancel` to cancel it.", ephemeral=True,
             )
             return
         imaginaryopponent = random.randint(0,9999999)
