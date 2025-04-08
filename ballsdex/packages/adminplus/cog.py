@@ -414,20 +414,22 @@ class Adminplus(commands.GroupCog):
         mythicalrng = random.randint(0,100)
         tenthatk = int(settings.max_attack_bonus/10)
         tenthhp = int(settings.max_health_bonus/10)
-        atkrng = random.randint(-1*tenthatk, tenthatk)*10
+        if statsq == "TENS":
+            atkrng = random.randint(-1*tenthatk, tenthatk)*10
+            hprng = random.randint(-1*tenthhp, tenthhp)*10
+        else:
+            atkrng = random.randint(-1*settings.max_attack_bonus, settings.max_attack_bonus)
+            hprng = random.randint(-1*settings.max_health_bonus, settings.max_health_bonus)
         if atkrng >= 0:
             plusatk = "+"
-        hprng = random.randint(-1*tenthhp, tenthhp)*10
         if hprng >= 0:
             plushp = "+"
         if shinyrng <= (shiny_percentage):
             shinyresult = f"\n***✨ It's a shiny {settings.collectible_name}! ✨***"
         elif mythicalrng <= (mythical_percentage):
             mythicalresult = f"\n*🔮 This {settings.collectible_name} exudes a mythical aura.🔮*"
-        if statsq == "TENS":
+        if statsq != "NOSTATS":
             statsresults = f"\n`{plusatk}{atkrng}ATK/{plushp}{hprng}HP`"
-        elif statsq == "ONES":
-            statsresults = f"\n`{plusatk}{atkrng+random.randint(0,9)}ATK/{plushp}{hprng+random.randint(0,9)}HP`"
         else:
             statsresults = ""
         await interaction.followup.send(f"# {ball.name}{statsresults}{shinyresult}{mythicalresult}")
