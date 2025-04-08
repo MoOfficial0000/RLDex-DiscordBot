@@ -20,6 +20,7 @@ from ballsdex.core.models import (
     specials,
     balls,
 )
+from ballsdex.core.utils.utils import inventory_privacy, is_staff
 from ballsdex.core.models import balls as countryballs
 from ballsdex.settings import settings
 from ballsdex.packages.countryballs.countryball import CountryBall
@@ -249,17 +250,46 @@ class Wish(commands.GroupCog):
             return True
         
     @dbz.command(name="completion")
-    async def completion(self, interaction: discord.Interaction):
+    @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
+    async def completion(self, interaction: discord.Interaction, user: discord.User | None = None):
         """
         Show your dragon ball completion for wishing
+        
+        Parameters
+        ----------
+        user: discord.User
+            The user whose completion you want to view, if not yours.
         """
-        await interaction.response.defer()
+        user_obj = user or interaction.user
+        await interaction.response.defer(thinking=True)
+        if user is not None:
+            try:
+                player = await Player.get(discord_id=user_obj.id)
+            except DoesNotExist:
+                await interaction.followup.send(
+                    f"{user_obj.name} doesn't have any "
+                    f"{extra_text}{settings.plural_collectible_name} yet."
+                )
+                return
+
+            interaction_player, _ = await Player.get_or_create(discord_id=interaction.user.id)
+
+            blocked = await player.is_blocked(interaction_player)
+            if blocked and not is_staff(interaction):
+                await interaction.followup.send(
+                    "You cannot view the completion of a user that has blocked you.",
+                    ephemeral=True,
+                )
+                return
+
+            if await inventory_privacy(self.bot, interaction, player, user_obj) is False:
+                return
         embed = discord.Embed(
             title=f"Wish Completion",
-            description=f"Dragon Ball completion of {interaction.user.mention}",
+            description=f"Dragon Ball completion of {user_obj.mention}",
         )
         embed.color=discord.Colour.from_rgb(0,0,255)
-        embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
+        embed.set_author(name=user_obj, icon_url=user_obj.avatar.url)
         embed.set_footer(text="Use '/dbz completion' for the full dex completion.")
 
         fullresult = []
@@ -273,7 +303,7 @@ class Wish(commands.GroupCog):
                     cutter=dbdnames[n-1]
                 else:
                     cutter="#"+str(n)
-                if await self.owned(interaction.user.id,dbdnames[n-1]):
+                if await self.owned(user_obj.id,dbdnames[n-1]):
                     result += f"- :white_check_mark:{fullemojis[emojisetcount][dbdnames.index(f'{str(dbdnames[n-1])}')]}{cutter}\n"
                 else:
                     result += f"- :x:{fullemojis[emojisetcount][dbdnames.index(f'{str(dbdnames[n-1])}')]}{cutter}\n"
