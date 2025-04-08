@@ -16,6 +16,7 @@ from tortoise.expressions import Q
 from ballsdex.core.models import PrivacyPolicy
 from ballsdex.core.utils.buttons import ConfirmChoiceView
 from ballsdex.core.models import Player as PlayerModel
+from ballsdex.core.bot import BallsDexBot
 
 from ballsdex.core.models import (
     Ball,
@@ -42,7 +43,6 @@ from ballsdex.core.utils.transformers import (
     SpecialEnabledTransform,
     TradeCommandType,
 )
-from ballsdex.packages.countryballs.countryball import CountryBall
 from ballsdex.packages.trade.display import TradeViewFormat, fill_trade_embed_fields
 from ballsdex.packages.trade.trade_user import TradingUser
 from ballsdex.settings import settings
@@ -72,7 +72,7 @@ class Adminplus(commands.GroupCog):
         name="blacklistguild", description="Guild blacklist management"
     )
     balls = app_commands.Group(
-        name=settings.plural_collectible_name, description="Balls management"
+        name=settings.players_group_cog_name, description="Balls management"
     )
     logs = app_commands.Group(name="logs", description="Bot logs management")
     history = app_commands.Group(name="history", description="Trade history management")
@@ -200,10 +200,15 @@ class Adminplus(commands.GroupCog):
 
     @app_commands.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
-    async def special_rarity(self, interaction: discord.Interaction):
+    async def special_rarity(self, interaction: discord.Interaction, countryball: BallTransform | None = None,):
         # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
         """
         Show the special count list of the dex - made by GamingadlerHD
+        
+        Parameters
+        ----------
+        countryball: Ball | None
+            Choose to filter by a specific countryball.
         """
         # Filter enabled collectibles
         events = [x for x in specials.values()]
@@ -230,6 +235,8 @@ class Adminplus(commands.GroupCog):
 
             filters = {}
             filters["special"] = special
+            if countryball:
+                filters["ball"] = countryball
 
             count = await BallInstance.filter(**filters)
             countNum = len(count)
@@ -259,22 +266,22 @@ class Adminplus(commands.GroupCog):
         )
 
     async def _spawn_bomb(
-            self,
-            interaction: discord.Interaction,
-            countryball: Ball | None,
-            channel: discord.TextChannel,
-            n: int,
+        self,
+        interaction: discord.Interaction[BallsDexBot],
+        countryball_cls: type["BallSpawnView"],
+        countryball: Ball | None,
+        channel: discord.TextChannel,
+        n: int,
     ):
         spawned = 0
 
         async def update_message_loop():
-            nonlocal spawned
             for i in range(5 * 12 * 10):  # timeout progress after 10 minutes
                 await interaction.followup.edit_message(
                     "@original",  # type: ignore
                     content=f"Spawn bomb in progress in {channel.mention}, "
-                            f"{settings.collectible_name.title()}: {countryball or 'Random'}\n"
-                            f"{spawned}/{n} spawned ({round((spawned / n) * 100)}%)",
+                    f"{settings.collectible_name.title()}: {countryball or 'Random'}\n"
+                    f"{spawned}/{n} spawned ({round((spawned / n) * 100)}%)",
                 )
                 await asyncio.sleep(5)
             await interaction.followup.edit_message(
@@ -284,21 +291,21 @@ class Adminplus(commands.GroupCog):
         await interaction.response.send_message(
             f"Starting spawn bomb in {channel.mention}...", ephemeral=True
         )
-        task = self.bot.loop.create_task(update_message_loop())
+        task = interaction.cliet.loop.create_task(update_message_loop())
         try:
             for i in range(n):
                 if not countryball:
-                    ball = await CountryBall.get_random()
+                    ball = await countryball_cls.get_random(interaction.client)
                 else:
-                    ball = CountryBall(countryball)
+                    ball = countryball_cls(interaction.client, countryball)
                 result = await ball.spawn(channel)
                 if not result:
                     task.cancel()
                     await interaction.followup.edit_message(
                         "@original",  # type: ignore
                         content=f"A {settings.collectible_name} failed to spawn, probably "
-                                "indicating a lack of permissions to send messages "
-                                f"or upload files in {channel.mention}.",
+                        "indicating a lack of permissions to send messages "
+                        f"or upload files in {channel.mention}.",
                     )
                     return
                 spawned += 1
@@ -306,7 +313,7 @@ class Adminplus(commands.GroupCog):
             await interaction.followup.edit_message(
                 "@original",  # type: ignore
                 content=f"Successfully spawned {spawned} {settings.plural_collectible_name} "
-                        f"in {channel.mention}!",
+                f"in {channel.mention}!",
             )
         finally:
             task.cancel()
@@ -315,10 +322,10 @@ class Adminplus(commands.GroupCog):
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def spawn(
             self,
-            interaction: discord.Interaction,
+            interaction: discord.Interaction[BallsDexBot],
             countryball: BallTransform | None = None,
             channel: discord.TextChannel | None = None,
-            n: int = 1,
+            n: app_commands.Range[int, 1, 100] = 1,
     ):
         """
         Force spawn a random or specified countryball.
@@ -332,56 +339,64 @@ class Adminplus(commands.GroupCog):
         n: int
             The number of countryballs to spawn. If no countryball was specified, it's random
             every time.
+        special: Special | None
+            Force the countryball to have a special attribute when caught.
+        atk_bonus: int | None
+            Force the countryball to have a specific attack bonus when caught.
+        hp_bonus: int | None
+            Force the countryball to have a specific health bonus when caught.
         """
         # the transformer triggered a response, meaning user tried an incorrect input
         if interaction.response.is_done():
             return
-
-        if n < 1:
-            await interaction.response.send_message(
-                "`n` must be superior or equal to 1.", ephemeral=True
+        cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
+        if not cog:
+            prefix = (
+                settings.prefix
+                if interaction.client.intents.message_content or not interaction.client.user
+                else f"{interaction.client.user.mention} "
             )
-            return
-        if n > 100:
+            # do not replace `countryballs` with `settings.collectible_name`, it is intended
             await interaction.response.send_message(
-                f"That doesn't seem reasonable to spawn {n} times, "
-                "the bot will be rate-limited. Try something lower than 100.",
+                "The `countryballs` package is not loaded, this command is unavailable.\n"
+                "Please resolve the errors preventing this package from loading. Use "
+                f'"{prefix}reload countryballs" to try reloading it.',
                 ephemeral=True,
             )
             return
 
         if n > 1:
             await self._spawn_bomb(
-                interaction, countryball, channel or interaction.channel, n  # type: ignore
+                interaction,
+                cog.countryball_cls,
+                countryball,
+                channel or interaction.channel,  # type: ignore
+                n,
             )
             await log_action(
                 f"{interaction.user} spawned {settings.collectible_name}"
                 f" {countryball or 'random'} {n} times in {channel or interaction.channel}.",
-                self.bot,
+                interaction.client,
             )
 
             return
 
-        if countryball:
-            if countryball.enabled == False:
-                return await interaction.response.send_message(
-                    f"You do not have permission to spawn this {settings.collectible_name}", ephemeral=True
-                )
         await interaction.response.defer(ephemeral=True, thinking=True)
         if not countryball:
-            ball = await CountryBall.get_random()
+            ball = await cog.countryball_cls.get_random(interaction.client)
         else:
-            ball = CountryBall(countryball)
+            ball = cog.countryball_cls(interaction.client, countryball)
         result = await ball.spawn(channel or interaction.channel)  # type: ignore
 
         if result:
             await interaction.followup.send(
                 f"{settings.collectible_name.title()} spawned.", ephemeral=True
             )
+            special_attrs = []
             await log_action(
                 f"{interaction.user} spawned {settings.collectible_name} {ball.name} "
-                f"in {channel or interaction.channel}.",
-                self.bot,
+                f"in {channel or interaction.channel}",
+                interaction.client,
             )
 
     @balls.command()
@@ -404,7 +419,8 @@ class Adminplus(commands.GroupCog):
         Spin the wheel!.
         """
         await interaction.response.defer(thinking=True)
-        ball = await CountryBall.get_random()
+        cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
+        ball = await cog.countryball_cls.get_random(interaction.client)
 
         shinyresult = ""
         mythicalresult = ""
