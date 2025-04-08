@@ -141,23 +141,23 @@ def update_embed(
     if maxallowed[1]=="EDB":
         emoji1 = ballsemojis[0]
         emoji2 = shenron1[-1]
-        rewardtext = "- **Wild character Drop!**\n- **Wild character Drop!**\n- **Wild character Drop!**\n- **Wild character Drop!**\n- **Wild character Drop!**\n- **Wild character Drop!**\n- **Wild character Drop!**"
+        rewardtext = "- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**"
     elif maxallowed[1]=="SDB":
         emoji1 = ballsemojis[1]
         emoji2 = supershenron1[-1]
-        rewardtext = "**- Wild character Drop! ( ✨60% | 🌌12% )**"
+        rewardtext = "**- Wild Character Drop! ( ✨60% | 🌌12% )**"
     elif maxallowed[1]=="NDB":
         emoji1 = ballsemojis[2]
         emoji2 = porunga1[-1]
-        rewardtext = "- **Wild character Drop!**\n- **Wild character Drop!**\n- **Wild character Drop!**\n- **Wild character Drop!**\n- **Wild character Drop!**\n- **Wild character Drop!**\n- **Wild character Drop!**"
+        rewardtext = "- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**"
     elif maxallowed[1]=="DDB":
         emoji1 = ballsemojis[3]
         emoji2 = porungadaima1[-1]
-        rewardtext = "- **Wild character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild character Drop! ( ✨2% | 🌌0.4% )**"
+        rewardtext = "- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Character Drop! ( ✨2% | 🌌0.4% )**"
     elif maxallowed[1]=="CDB":
         emoji1 = ballsemojis[4]
         emoji2 = toronbo1[-1]
-        rewardtext = "- **Wild character Drop! ( ✨3% | 🌌0.6% )**\n- **Wild character Drop! ( ✨3% | 🌌0.6% )**"
+        rewardtext = "- **Wild Character Drop! ( ✨3% | 🌌0.6% )**\n- **Wild Character Drop! ( ✨3% | 🌌0.6% )**"
     embed = discord.Embed(
         title=f"{settings.collectible_name.title()} Wishing {emoji2} {emoji1}",
         description=(
