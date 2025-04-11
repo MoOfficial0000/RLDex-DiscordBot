@@ -141,23 +141,23 @@ def update_embed(
     if maxallowed[1]=="EDB":
         emoji1 = ballsemojis[0]
         emoji2 = shenron1[-1]
-        rewardtext = "- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**"
+        rewardtext = "- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**"
     elif maxallowed[1]=="SDB":
         emoji1 = ballsemojis[1]
         emoji2 = supershenron1[-1]
-        rewardtext = "**- Wild Character Drop! ( ✨60% | 🌌12% )**"
+        rewardtext = "**- Wild Chatacter Drop! ( ✨60% | 🌌12% )**"
     elif maxallowed[1]=="NDB":
         emoji1 = ballsemojis[2]
         emoji2 = porunga1[-1]
-        rewardtext = "- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**"
+        rewardtext = "- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**\n- **Wild Chatacter Drop!**"
     elif maxallowed[1]=="DDB":
         emoji1 = ballsemojis[3]
         emoji2 = porungadaima1[-1]
-        rewardtext = "- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Character Drop! ( ✨2% | 🌌0.4% )**"
+        rewardtext = "- **Wild Chatacter Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Chatacter Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Chatacter Drop! ( ✨2% | 🌌0.4% )**"
     elif maxallowed[1]=="CDB":
         emoji1 = ballsemojis[4]
         emoji2 = toronbo1[-1]
-        rewardtext = "- **Wild Character Drop! ( ✨3% | 🌌0.6% )**\n- **Wild Character Drop! ( ✨3% | 🌌0.6% )**"
+        rewardtext = "- **Wild Chatacter Drop! ( ✨3% | 🌌0.6% )**\n- **Wild Chatacter Drop! ( ✨3% | 🌌0.6% )**"
     embed = discord.Embed(
         title=f"{settings.collectible_name.title()} Wishing {emoji2} {emoji1}",
         description=(
@@ -397,17 +397,17 @@ class Wish(commands.GroupCog):
             mythical_percentage = -1
         elif maxallowed[1]=="SDB":
             shiny_percentage = 60
-            mythical_percentage = 10
+            mythical_percentage = 30 #multiplied by 100/40 for accurancy since it also relies on shiny not being shiny
             noofrewards = 1
         elif maxallowed[1]=="NDB":
             shiny_percentage = -1
             mythical_percentage = -1
         elif maxallowed[1]=="DDB":
             shiny_percentage = 2
-            mythical_percentage = 0.4
+            mythical_percentage = 0.408
         elif maxallowed[1]=="CDB":
             shiny_percentage = 3
-            mythical_percentage = 0.6
+            mythical_percentage = 0.619
         if textvalue1 =="":
             cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
             for i in range(noofrewards):
