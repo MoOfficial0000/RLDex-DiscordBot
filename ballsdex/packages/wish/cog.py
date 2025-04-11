@@ -145,7 +145,7 @@ def update_embed(
     elif maxallowed[1]=="SDB":
         emoji1 = ballsemojis[1]
         emoji2 = supershenron1[-1]
-        rewardtext = "**- Wild Chatacter Drop! ( ✨60% | 🌌12% )**"
+        rewardtext = "**- Wild Character Drop! ( ✨60% | 🌌12% )**"
     elif maxallowed[1]=="NDB":
         emoji1 = ballsemojis[2]
         emoji2 = porunga1[-1]
