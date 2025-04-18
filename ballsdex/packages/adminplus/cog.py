@@ -402,7 +402,7 @@ class Adminplus(commands.GroupCog):
     @balls.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     @app_commands.choices(
-        statsq=[
+        stats=[
             app_commands.Choice(name="Regular stats", value="ONES"),
             app_commands.Choice(name="Tens stats (10,20,30etc)", value="TENS"),
             app_commands.Choice(name="No stats", value="NOSTATS")
@@ -413,7 +413,7 @@ class Adminplus(commands.GroupCog):
         interaction: discord.Interaction,
         shiny_percentage: float | None = float(-1),
         mythical_percentage: float | None = float(-1),
-        statsq: str | None = None,
+        stats: str | None = None,
     ):
         """
         Spin the wheel!.
@@ -430,7 +430,7 @@ class Adminplus(commands.GroupCog):
         mythicalrng = random.randint(0,100)
         tenthatk = int(settings.max_attack_bonus/10)
         tenthhp = int(settings.max_health_bonus/10)
-        if statsq == "TENS":
+        if stats == "TENS":
             atkrng = random.randint(-1*tenthatk, tenthatk)*10
             hprng = random.randint(-1*tenthhp, tenthhp)*10
         else:
@@ -444,7 +444,7 @@ class Adminplus(commands.GroupCog):
             shinyresult = f"\n***✨ It's a shiny {settings.collectible_name}! ✨***"
         elif mythicalrng <= (mythical_percentage):
             mythicalresult = f"\n*🔮 This {settings.collectible_name} exudes a mythical aura.🔮*"
-        if statsq != "NOSTATS":
+        if stats != "NOSTATS":
             statsresults = f"\n`{plusatk}{atkrng}ATK/{plushp}{hprng}HP`"
         else:
             statsresults = ""
