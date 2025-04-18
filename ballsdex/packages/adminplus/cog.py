@@ -411,8 +411,8 @@ class Adminplus(commands.GroupCog):
     async def wheel(
         self,
         interaction: discord.Interaction,
-        shiny_percentage: float | None = float(-1),
-        mythical_percentage: float | None = float(-1),
+        shiny_percentage: app_commands.Range[float, 0, 100] = 0,
+        mythical_percentage: app_commands.Range[float, 0, 100] = 0,
         stats: str | None = None,
     ):
         """
@@ -421,9 +421,10 @@ class Adminplus(commands.GroupCog):
         await interaction.response.defer(thinking=True)
         cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
         ball = await cog.countryball_cls.get_random(interaction.client)
-
         shinyresult = ""
         mythicalresult = ""
+        if shiny_percentage != 100:
+            mythical_percentage = mythical_percentage * 100/(100-shiny_percentage) # this is required since mythical relies on NOTSHINY to work
         plusatk = ""
         plushp = ""
         shinyrng = random.randint(0,100)
