@@ -20,7 +20,7 @@ from ballsdex.core.utils.transformers import (
     TradeCommandType,
 )
 from ballsdex.core.utils.utils import inventory_privacy, is_staff
-from ballsdex.packages.balls.countryballs_paginator import CountryballsViewer
+from ballsdex.packages.balls.countryballs_paginator import CountryballsViewer, DuplicateViewMenu
 from ballsdex.settings import settings
 
 if TYPE_CHECKING:
@@ -100,8 +100,8 @@ class DonationRequest(View):
         await self.countryball.unlock()
 
 
-class DuplicateType(enum.Enum):
-    countryballs = "countryballs"
+class DuplicateType(enum.StrEnum):
+    countryballs = settings.plural_collectible_name
     specials = "specials"
 
 
@@ -366,8 +366,8 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
         if not countryball:
             return
         await interaction.response.defer(thinking=True)
-        content, file = await countryball.prepare_for_message(interaction)
-        await interaction.followup.send(content=content, file=file)
+        content, file, view = await countryball.prepare_for_message(interaction)
+        await interaction.followup.send(content=content, file=file, view=view)
         file.close()
 
     @app_commands.command()
@@ -419,13 +419,13 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
             )
             return
 
-        content, file = await countryball.prepare_for_message(interaction)
+        content, file, view = await countryball.prepare_for_message(interaction)
         if user is not None and user.id != interaction.user.id:
             content = (
                 f"You are viewing {user.display_name}'s last caught {settings.collectible_name}.\n"
                 + content
             )
-        await interaction.followup.send(content=content, file=file)
+        await interaction.followup.send(content=content, file=file, view=view)
         file.close()
 
     @app_commands.command()
@@ -674,7 +674,10 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
     @app_commands.command()
     @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
     async def duplicate(
-        self, interaction: discord.Interaction["BallsDexBot"], type: DuplicateType
+        self,
+        interaction: discord.Interaction["BallsDexBot"],
+        type: DuplicateType,
+        limit: int | None = None,
     ):
         """
         Shows your most duplicated countryballs or specials.
@@ -683,32 +686,34 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
         ----------
         type: DuplicateType
             Type of duplicate to check (countryballs or specials).
+        limit: int | None
+            The amount of countryballs to show, can only be used with `countryballs`.
         """
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         player, _ = await Player.get_or_create(discord_id=interaction.user.id)
         await player.fetch_related("balls")
-        is_special = type.value == "specials"
+        is_special = type == DuplicateType.specials
         queryset = BallInstance.filter(player=player)
 
         if is_special:
             queryset = queryset.filter(special_id__isnull=False).prefetch_related("special")
             annotations = {"name": "special__name", "emoji": "special__emoji"}
-            title = "special"
-            limit = 5
+            apply_limit = False
         else:
             queryset = queryset.filter(ball__tradeable=True)
             annotations = {"name": "ball__country", "emoji": "ball__emoji_id"}
-            title = settings.collectible_name
-            limit = 50
+            apply_limit = True
 
-        results = (
-            await queryset.annotate(count=Count("id"))
-            .group_by(*annotations.values())
-            .order_by("-count")
-            .limit(limit)
-            .values(*annotations.values(), "count")
+        query = (
+            queryset.annotate(count=Count("id")).group_by(*annotations.values()).order_by("-count")
         )
+
+        if apply_limit and limit is not None:
+            query = query.limit(limit)
+
+        query = query.values(*annotations.values(), "count")
+        results = await query
 
         if not results:
             await interaction.followup.send(
@@ -717,27 +722,18 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
             return
 
         entries = [
-            (
-                f"{i + 1}. {item[annotations['name']]} "
-                f"{self.bot.get_emoji(item[annotations['emoji']]) or item[annotations['emoji']]}",
-                f"Count: {item['count']}",
-            )
-            for i, item in enumerate(results)
+            {
+                "name": item[annotations["name"]],
+                "emoji": (
+                    self.bot.get_emoji(item[annotations["emoji"]]) or item[annotations["emoji"]]
+                ),
+                "count": item["count"],
+            }
+            for item in results
         ]
 
-        embed_title = (
-            f"Top {len(results)} duplicate {title}s:"
-            if len(results) > 1
-            else f"Top {len(results)} duplicate {title}"
-        )
-
-        source = FieldPageSource(entries, per_page=5 if is_special else 10, inline=False)
-        source.embed.title = embed_title
-        source.embed.color = discord.Color.purple() if is_special else discord.Color.blue()
-        source.embed.set_thumbnail(url=interaction.user.display_avatar.url)
-
-        paginator = Pages(source, interaction=interaction)
-        await paginator.start(ephemeral=True)
+        source = DuplicateViewMenu(interaction, entries, type.value)
+        await source.start(content=f"View your duplicate {type.value}.")
 
     @app_commands.command()
     @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
@@ -755,7 +751,7 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
         user: discord.User
             The user you want to compare with
         special: Special
-            Filter the results of autocompletion to a special event. Ignored afterwards.
+            Filter the results of the comparison to a special event.
         """
         await interaction.response.defer(thinking=True)
         if interaction.user == user:
