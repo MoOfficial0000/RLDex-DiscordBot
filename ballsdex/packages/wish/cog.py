@@ -419,8 +419,8 @@ class Wish(commands.GroupCog):
                 plusatk = ""
                 plushp = ""
                 special = None
-                shinyrng = random.randint(0,100)
-                mythicalrng = random.randint(0,100)
+                shinyrng = random.uniform(0,100)
+                mythicalrng = random.uniform(0,100)
                 dasatk = int(settings.max_attack_bonus)
                 dashp = int(settings.max_health_bonus)
                 atkrng = random.randint(-1*dasatk, dasatk)
@@ -429,10 +429,10 @@ class Wish(commands.GroupCog):
                 hprng = random.randint(-1*dashp, dashp)
                 if hprng >= 0:
                     plushp = "+"
-                if shinyrng <= (shiny_percentage):
+                if shinyrng < (shiny_percentage):
                     shinyresult = f"\n***✨ It's a shiny {settings.collectible_name}! ✨***"
                     special = [x for x in specials.values() if x.name == "Shiny"][0]
-                elif mythicalrng <= (mythical_percentage):
+                elif mythicalrng < (mythical_percentage):
                     mythicalresult = f"\n*🔮 This {settings.collectible_name} exudes a mythical aura.🔮*"
                     special = [x for x in specials.values() if x.name == "Mythical"][0]
                 statsresults = f"\n`{plusatk}{atkrng}ATK/{plushp}{hprng}HP`"
