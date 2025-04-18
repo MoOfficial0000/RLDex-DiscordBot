@@ -427,8 +427,8 @@ class Adminplus(commands.GroupCog):
             mythical_percentage = mythical_percentage * 100/(100-shiny_percentage) # this is required since mythical relies on NOTSHINY to work
         plusatk = ""
         plushp = ""
-        shinyrng = random.randint(0,100)
-        mythicalrng = random.randint(0,100)
+        shinyrng = random.uniform(0,100)
+        mythicalrng = random.uniform(0,100)
         tenthatk = int(settings.max_attack_bonus/10)
         tenthhp = int(settings.max_health_bonus/10)
         if stats == "TENS":
@@ -441,9 +441,9 @@ class Adminplus(commands.GroupCog):
             plusatk = "+"
         if hprng >= 0:
             plushp = "+"
-        if shinyrng <= (shiny_percentage):
+        if shinyrng < (shiny_percentage):
             shinyresult = f"\n***✨ It's a shiny {settings.collectible_name}! ✨***"
-        elif mythicalrng <= (mythical_percentage):
+        elif mythicalrng < (mythical_percentage):
             mythicalresult = f"\n*🔮 This {settings.collectible_name} exudes a mythical aura.🔮*"
         if stats != "NOSTATS":
             statsresults = f"\n`{plusatk}{atkrng}ATK/{plushp}{hprng}HP`"
