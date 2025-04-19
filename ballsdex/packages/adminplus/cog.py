@@ -17,6 +17,8 @@ from ballsdex.core.models import PrivacyPolicy
 from ballsdex.core.utils.buttons import ConfirmChoiceView
 from ballsdex.core.models import Player as PlayerModel
 from ballsdex.core.bot import BallsDexBot
+from ballsdex.packages.admin.balls import Balls
+adminballs = Balls
 
 from ballsdex.core.models import (
     Ball,
@@ -167,19 +169,19 @@ class Adminplus(commands.GroupCog):
         if owned_countryballs:
             # Getting the list of emoji IDs from the IDs of the owned countryballs
             fill_fields(
-                f"Existing {settings.plural_collectible_name}",
+                f"Caught {settings.plural_collectible_name}",
                 set(bot_countryballs[x] for x in owned_countryballs),
             )
         else:
-            entries.append((f"__**Existing {settings.plural_collectible_name}**__", "Nothing yet."))
+            entries.append((f"__**Caught {settings.plural_collectible_name}**__", "Nothing yet."))
 
         if missing := set(y for x, y in bot_countryballs.items() if x not in owned_countryballs):
-            fill_fields(f"Missing {settings.plural_collectible_name}", missing)
+            fill_fields(f"Uncaught {settings.plural_collectible_name}", missing)
         else:
             entries.append(
                 (
-                    f"__**:tada: No missing {settings.plural_collectible_name}, "
-                    "congratulations! :tada:**__",
+                    f"__**:tada: No missing {settings.plural_collectible_name}! "
+                    ":tada:**__",
                     "\u200B",
                 )
             )  # force empty field value
@@ -187,7 +189,7 @@ class Adminplus(commands.GroupCog):
         source = FieldPageSource(entries, per_page=5, inline=False, clear_description=False)
         special_str = f" ({special.name})" if special else ""
         source.embed.description = (
-            f"{settings.bot_name}{special_str} progression: "
+            f"Global {settings.bot_name}{special_str} progression: "
             f"**{round(len(owned_countryballs) / len(bot_countryballs) * 100, 1)}%**"
         )
         source.embed.colour = discord.Colour.blurple()
@@ -265,66 +267,12 @@ class Adminplus(commands.GroupCog):
             ephemeral=True,
         )
 
-    async def _spawn_bomb(
-        self,
-        interaction: discord.Interaction[BallsDexBot],
-        countryball_cls: type["BallSpawnView"],
-        countryball: Ball | None,
-        channel: discord.TextChannel,
-        n: int,
-    ):
-        spawned = 0
-
-        async def update_message_loop():
-            for i in range(5 * 12 * 10):  # timeout progress after 10 minutes
-                await interaction.followup.edit_message(
-                    "@original",  # type: ignore
-                    content=f"Spawn bomb in progress in {channel.mention}, "
-                    f"{settings.collectible_name.title()}: {countryball or 'Random'}\n"
-                    f"{spawned}/{n} spawned ({round((spawned / n) * 100)}%)",
-                )
-                await asyncio.sleep(5)
-            await interaction.followup.edit_message(
-                "@original", content="Spawn bomb seems to have timed out."  # type: ignore
-            )
-
-        await interaction.response.send_message(
-            f"Starting spawn bomb in {channel.mention}...", ephemeral=True
-        )
-        task = interaction.cliet.loop.create_task(update_message_loop())
-        try:
-            for i in range(n):
-                if not countryball:
-                    ball = await countryball_cls.get_random(interaction.client)
-                else:
-                    ball = countryball_cls(interaction.client, countryball)
-                result = await ball.spawn(channel)
-                if not result:
-                    task.cancel()
-                    await interaction.followup.edit_message(
-                        "@original",  # type: ignore
-                        content=f"A {settings.collectible_name} failed to spawn, probably "
-                        "indicating a lack of permissions to send messages "
-                        f"or upload files in {channel.mention}.",
-                    )
-                    return
-                spawned += 1
-            task.cancel()
-            await interaction.followup.edit_message(
-                "@original",  # type: ignore
-                content=f"Successfully spawned {spawned} {settings.plural_collectible_name} "
-                f"in {channel.mention}!",
-            )
-        finally:
-            task.cancel()
-
     @balls.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def spawn(
             self,
             interaction: discord.Interaction[BallsDexBot],
             countryball: BallTransform | None = None,
-            channel: discord.TextChannel | None = None,
             n: app_commands.Range[int, 1, 100] = 1,
     ):
         """
@@ -334,70 +282,24 @@ class Adminplus(commands.GroupCog):
         ----------
         countryball: Ball | None
             The countryball you want to spawn. Random according to rarities if not specified.
-        channel: discord.TextChannel | None
-            The channel you want to spawn the countryball in. Current channel if not specified.
         n: int
             The number of countryballs to spawn. If no countryball was specified, it's random
             every time.
-        special: Special | None
-            Force the countryball to have a special attribute when caught.
-        atk_bonus: int | None
-            Force the countryball to have a specific attack bonus when caught.
-        hp_bonus: int | None
-            Force the countryball to have a specific health bonus when caught.
         """
-        # the transformer triggered a response, meaning user tried an incorrect input
-        if interaction.response.is_done():
-            return
-        cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
-        if not cog:
-            prefix = (
-                settings.prefix
-                if interaction.client.intents.message_content or not interaction.client.user
-                else f"{interaction.client.user.mention} "
-            )
-            # do not replace `countryballs` with `settings.collectible_name`, it is intended
-            await interaction.response.send_message(
-                "The `countryballs` package is not loaded, this command is unavailable.\n"
-                "Please resolve the errors preventing this package from loading. Use "
-                f'"{prefix}reload countryballs" to try reloading it.',
-                ephemeral=True,
-            )
-            return
-
-        if n > 1:
-            await self._spawn_bomb(
-                interaction,
-                cog.countryball_cls,
-                countryball,
-                channel or interaction.channel,  # type: ignore
-                n,
-            )
-            await log_action(
-                f"{interaction.user} spawned {settings.collectible_name}"
-                f" {countryball or 'random'} {n} times in {channel or interaction.channel}.",
-                interaction.client,
-            )
-
-            return
-
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        if not countryball:
-            ball = await cog.countryball_cls.get_random(interaction.client)
-        else:
-            ball = cog.countryball_cls(interaction.client, countryball)
-        result = await ball.spawn(channel or interaction.channel)  # type: ignore
-
-        if result:
-            await interaction.followup.send(
-                f"{settings.collectible_name.title()} spawned.", ephemeral=True
-            )
-            special_attrs = []
-            await log_action(
-                f"{interaction.user} spawned {settings.collectible_name} {ball.name} "
-                f"in {channel or interaction.channel}",
-                interaction.client,
-            )
+        if countryball:
+            if countryball.enabled == False:
+                return await interaction.response.send_message(f"You do not have permission to spawn this {settings.collectible_name}", ephemeral=True)
+        await adminballs().get_command('spawn').callback(
+            adminballs(),
+            interaction,
+            countryball,
+            None,
+            n,
+            None,
+            None,
+            None,
+        )
+            
 
     @balls.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
@@ -460,8 +362,8 @@ class Adminplus(commands.GroupCog):
         countryball: BallTransform,
         user: discord.User,
         special: SpecialTransform | None = None,
-        health_bonus: int | None = None,
-        attack_bonus: int | None = None,
+        health_bonus: app_commands.Range[int, -1*settings.max_health_bonus, settings.max_health_bonus] = None,
+        attack_bonus: app_commands.Range[int, -1*settings.max_attack_bonus, settings.max_attack_bonus] = None,
     ):
         """
         Give the specified countryball to a player.
@@ -477,42 +379,20 @@ class Adminplus(commands.GroupCog):
             Omit this to make it random.
         """
         # the transformers triggered a response, meaning user tried an incorrect input
-        if interaction.response.is_done():
-            return
-        if countryball.tradeable == False:
+        if countryball.enabled == False:
             return await interaction.response.send_message(f"You do not have permission to give this {settings.collectible_name}", ephemeral=True)
         paintarray = ["Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
         if special != None:
             if str(special) not in paintarray:
                 return await interaction.response.send_message("You do not have permission to give this special",ephemeral=True)
-        await interaction.response.defer(ephemeral=True, thinking=True)
-
-        player, created = await Player.get_or_create(discord_id=user.id)
-        instance = await BallInstance.create(
-            ball=countryball,
-            player=player,
-            attack_bonus=(
-                attack_bonus
-                if attack_bonus is not None
-                else random.randint(-20, 20)
-            ),
-            health_bonus=(
-                health_bonus
-                if health_bonus is not None
-                else random.randint(-20, 20)
-            ),
-            special=special,
-        )
-        await interaction.followup.send(
-            f"`{countryball.country}` {settings.collectible_name} was successfully given to "
-            f"`{user}`.\nSpecial: `{special.name if special else None}` • ATK: "
-            f"`{instance.attack_bonus:+d}` • HP:`{instance.health_bonus:+d}` "
-        )
-        await log_action(
-            f"{interaction.user} gave {settings.collectible_name} "
-            f"{countryball.country} to {user}. (Special={special.name if special else None} "
-            f"ATK={instance.attack_bonus:+d} HP={instance.health_bonus:+d}).",
-            self.bot,
+        await adminballs().get_command('give').callback(
+            adminballs(),
+            interaction,
+            countryball,
+            user,
+            special,
+            health_bonus,
+            attack_bonus,
         )
 
     @app_commands.command()
