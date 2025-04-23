@@ -515,10 +515,22 @@ class Adminplus(commands.GroupCog):
 
         if not balls_to_transfer:
             await interaction.followup.send(
-                f"{donor} does not own any countryballs to transfer.", ephemeral=True
+                f"{donor} does not own any {settings.plural_collectible_name} to transfer.", ephemeral=True
             )
             return
-    
+        view = ConfirmChoiceView(
+            interaction,
+            accept_message=f"Confirmed, transferring all {settings.plural_collectible_name}...",
+            cancel_message="Request cancelled.",
+        )
+        await interaction.followup.send(
+            f"Are you sure you want to transfer all {settings.plural_collectible_name} from {donor} to {receiver}?\nThis cannot be reversed.",
+            view=view,
+            ephemeral=True,
+        )
+        await view.wait()
+        if not view.value:
+            return
         # Start the bulk transfer
         trade = await Trade.create(player1=donor_player, player2=receiver_player)
         for ball in balls_to_transfer:
@@ -529,12 +541,12 @@ class Adminplus(commands.GroupCog):
             await TradeObject.create(trade=trade, ballinstance=ball, player=donor_player)
 
         await interaction.followup.send(
-            f"Transferred all {settings.collectible_name} from {donor} to {receiver}.",
+            f"Transferred all {settings.plural_collectible_name} from {donor} to {receiver}.",
             ephemeral=True,
         )
 
         # Log the action
         await log_action(
-            f"{interaction.user} bulk-transferred all countryballs from {donor} to {receiver}.",
+            f"{interaction.user} bulk-transferred all {settings.plural_collectible_name} from {donor} to {receiver}.",
             interaction.client,
         )
