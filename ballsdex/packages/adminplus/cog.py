@@ -505,6 +505,7 @@ class Adminplus(commands.GroupCog):
         receiver: discord.User
             The user who will receive the countryballs.
         """
+        await interaction.response.defer(ephemeral=True, thinking=True)
         # Get the player objects for both the donor and the receiver
         donor_player, _ = await Player.get_or_create(discord_id=donor.id)
         receiver_player, _ = await Player.get_or_create(discord_id=receiver.id)
@@ -513,22 +514,22 @@ class Adminplus(commands.GroupCog):
         balls_to_transfer = await BallInstance.filter(player=donor_player).prefetch_related("player")
 
         if not balls_to_transfer:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"{donor} does not own any countryballs to transfer.", ephemeral=True
             )
             return
     
         # Start the bulk transfer
+        trade = await Trade.create(player1=donor_player, player2=receiver_player)
         for ball in balls_to_transfer:
             ball.player = receiver_player  
             await ball.save()
 
             # Log the transfer in the trade table
-            trade = await Trade.create(player1=donor_player, player2=receiver_player)
             await TradeObject.create(trade=trade, ballinstance=ball, player=donor_player)
 
-        await interaction.response.send_message(
-            f"Transferred all countryballs from {donor} to {receiver}.",
+        await interaction.followup.send(
+            f"Transferred all {settings.collectible_name} from {donor} to {receiver}.",
             ephemeral=True,
         )
 
