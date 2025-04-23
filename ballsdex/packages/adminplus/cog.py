@@ -486,3 +486,54 @@ class Adminplus(commands.GroupCog):
             await pages.start(
                 ephemeral=True,
             )
+
+    @app_commands.command()
+    @app_commands.checks.has_any_role(*settings.root_role_ids)
+    async def bulk_transfer(
+        self,
+        interaction: discord.Interaction[BallsDexBot],
+        donor: discord.User,
+        receiver: discord.User,
+    ):
+        """
+        Transfer all countryballs from one user to another.
+
+        Parameters
+        ----------
+        donor: discord.User
+            The user from whom the countryballs will be transferred.
+        receiver: discord.User
+            The user who will receive the countryballs.
+        """
+        # Get the player objects for both the donor and the receiver
+        donor_player, _ = await Player.get_or_create(discord_id=donor.id)
+        receiver_player, _ = await Player.get_or_create(discord_id=receiver.id)
+
+        # Get all countryballs owned by the donor
+        balls_to_transfer = await BallInstance.filter(player=donor_player).prefetch_related("player")
+
+        if not balls_to_transfer:
+            await interaction.response.send_message(
+                f"{donor} does not own any countryballs to transfer.", ephemeral=True
+            )
+            return
+    
+        # Start the bulk transfer
+        for ball in balls_to_transfer:
+            ball.player = receiver_player  
+            await ball.save()
+
+            # Log the transfer in the trade table
+            trade = await Trade.create(player1=donor_player, player2=receiver_player)
+            await TradeObject.create(trade=trade, ballinstance=ball, player=donor_player)
+
+        await interaction.response.send_message(
+            f"Transferred all countryballs from {donor} to {receiver}.",
+            ephemeral=True,
+        )
+
+        # Log the action
+        await log_action(
+            f"{interaction.user} bulk-transferred all countryballs from {donor} to {receiver}.",
+            interaction.client,
+        )
