@@ -201,8 +201,8 @@ class Adminplus(commands.GroupCog):
 
 
     @app_commands.command()
-    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
-    async def special_rarity(self, interaction: discord.Interaction, countryball: BallTransform | None = None,):
+    @app_commands.checks.has_any_role(*settings.root_role_ids)
+    async def special_rarity(self, interaction: discord.Interaction, countryball: BallEnabledTransform | None = None,):
         # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
         """
         Show the special count list of the dex - made by GamingadlerHD
@@ -272,7 +272,7 @@ class Adminplus(commands.GroupCog):
     async def spawn(
             self,
             interaction: discord.Interaction[BallsDexBot],
-            countryball: BallTransform | None = None,
+            countryball: BallEnabledTransform | None = None,
             n: app_commands.Range[int, 1, 100] = 1,
             special: SpecialTransform | None = None,
             
@@ -367,7 +367,7 @@ class Adminplus(commands.GroupCog):
     async def give(
         self,
         interaction: discord.Interaction,
-        countryball: BallTransform,
+        countryball: BallEnabledTransform,
         user: discord.User,
         special: SpecialTransform | None = None,
         health_bonus: app_commands.Range[int, -1*settings.max_health_bonus, settings.max_health_bonus] = None,
@@ -404,7 +404,7 @@ class Adminplus(commands.GroupCog):
         )
 
     @app_commands.command()
-    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    @app_commands.checks.has_any_role(*settings.root_role_ids)
     async def count_list(
         self,
         interaction: discord.Interaction,
