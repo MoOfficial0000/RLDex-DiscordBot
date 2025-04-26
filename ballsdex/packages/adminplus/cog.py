@@ -274,6 +274,8 @@ class Adminplus(commands.GroupCog):
             interaction: discord.Interaction[BallsDexBot],
             countryball: BallTransform | None = None,
             n: app_commands.Range[int, 1, 100] = 1,
+            special: SpecialTransform | None = None,
+            
     ):
         """
         Force spawn a random or specified countryball.
@@ -285,17 +287,23 @@ class Adminplus(commands.GroupCog):
         n: int
             The number of countryballs to spawn. If no countryball was specified, it's random
             every time.
+        special: Special | None
+            The special you want to spawn. You can only spawn RLDex paints.
         """
         if countryball:
             if countryball.enabled == False:
                 return await interaction.response.send_message(f"You do not have permission to spawn this {settings.collectible_name}", ephemeral=True)
+        paintarray = ["Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
+        if special:
+            if str(special) not in paintarray:
+                return await interaction.response.send_message("You do not have permission to spawn this special",ephemeral=True)
         await adminballs().get_command('spawn').callback(
             adminballs(),
             interaction,
             countryball,
             None,
             n,
-            None,
+            special,
             None,
             None,
         )
@@ -382,7 +390,7 @@ class Adminplus(commands.GroupCog):
         if countryball.enabled == False:
             return await interaction.response.send_message(f"You do not have permission to give this {settings.collectible_name}", ephemeral=True)
         paintarray = ["Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
-        if special != None:
+        if special:
             if str(special) not in paintarray:
                 return await interaction.response.send_message("You do not have permission to give this special",ephemeral=True)
         await adminballs().get_command('give').callback(
