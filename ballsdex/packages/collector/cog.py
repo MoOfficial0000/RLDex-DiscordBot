@@ -395,7 +395,7 @@ class Collector(commands.GroupCog):
         interaction: discord.Interaction["BallsDexBot"],
         option: str,
         collector_type: str,
-        countryball: BallTransform | None = None,
+        countryball: BallEnabledTransform | None = None,
         user: discord.User | None = None,
     ):
         """
@@ -404,7 +404,7 @@ class Collector(commands.GroupCog):
         Parameters
         ----------
         option: str
-            The thingamajig bruh
+            The type of operation you require
         collector_type: str
             The type of card you want to check
         countryball: Ball | None
