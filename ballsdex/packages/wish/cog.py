@@ -742,7 +742,7 @@ class Wish(commands.GroupCog):
         self, interaction: discord.Interaction, countryball: BallInstanceTransform, special: SpecialEnabledTransform | None = None,
     ):
         """
-        Adds a countryball to a battle.
+        Adds a countryball to a wish.
 
         Parameters
         ----------
@@ -775,7 +775,7 @@ class Wish(commands.GroupCog):
         self, interaction: discord.Interaction, countryball: BallInstanceTransform, special: SpecialEnabledTransform | None = None,
     ):
         """
-        Removes a countryball from battle.
+        Removes a countryball from wish.
 
         Parameters
         ----------
@@ -803,7 +803,7 @@ class Wish(commands.GroupCog):
         self, interaction: discord.Interaction
     ):
         """
-        Cancels the battle you are in.
+        Cancels the wish you are in.
 
         Parameters
         ----------
