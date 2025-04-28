@@ -39,8 +39,8 @@ if TYPE_CHECKING:
 log = logging.getLogger("ballsdex.packages.battle")
 
 battles = []
-highevent = ("Testers","Birthday Ball","Eid al-Adha","Realm","Event Farmer")
-lowevent = ("Lunar New Year 2025","Christmas 2024","Summer","Easter 2025")
+highevent = ("Testers","Birthday Ball","Eid al-Adha","Realm","Event Farmer","American","Dragon Ball")
+lowevent = ("Lunar New Year 2025","Christmas 2024","Summer","Easter 2025","Haunted Hallows 2024")
 
 @dataclass
 class GuildBattle:
