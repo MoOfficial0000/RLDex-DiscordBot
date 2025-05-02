@@ -156,7 +156,7 @@ class Collector(commands.GroupCog):
                 if passcount2 > 0:
                     missingoneofones -= 1
                 else:
-                    missingonetext.append(f"{ones} / Aditional Extra Shiny")
+                    missingonetext.append(f"{ones} / Additional Extra Shiny")
         if missingoneofones >= 1:
             passed = False
             for mt in missingonetext:
