@@ -499,11 +499,11 @@ class Boss(commands.GroupCog):
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+1000 ATK and {ballhealth}+1000 HP"
             ballhealth += 1000
             ballattack += 1000
-        elif "🚀" in messageforuser or "🎩" in messageforuser or "🐑" in messageforuser or "🔮" in messageforuser or "🇺🇸" in messageforuser or "👨‍🌾" in messageforuser:
+        elif "🚀" in messageforuser or "🎩" in messageforuser or "🐑" in messageforuser or "🔮" in messageforuser or "🇺🇸" in messageforuser or "👨‍🌾" in messageforuser or "🐉" in messageforuser:
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{eventvalue1} ATK and {ballhealth}+{eventvalue1} HP"
             ballhealth += eventvalue1
             ballattack += eventvalue1
-        elif "☀" in messageforuser or "☀️" in messageforuser or "🎃" in messageforuser or "🔵" in messageforuser or "🔴" in messageforuser or "🐉" in messageforuser or "🎄" in messageforuser or "🧧" in messageforuser or "🧺" in messageforuser:
+        elif "☀" in messageforuser or "☀️" in messageforuser or "🎃" in messageforuser or "💥" in messageforuser or "🎄" in messageforuser or "🧧" in messageforuser or "🧺" in messageforuser or "🎉" in messageforuser:
             messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{eventvalue2} ATK and {ballhealth}+{eventvalue2} HP"
             ballhealth += eventvalue2
             ballattack += eventvalue2
