@@ -40,7 +40,7 @@ log = logging.getLogger("ballsdex.packages.battle")
 
 battles = []
 highevent = ("Testers","Birthday Ball","Eid al-Adha","Realm","Event Farmer","American","Dragon Ball")
-lowevent = ("Lunar New Year 2025","Christmas 2024","Summer","Easter 2025","Haunted Hallows 2024","Goku Day 2025")
+lowevent = ("Lunar New Year 2025","Christmas 2024","Summer","Easter 2025","Haunted Hallows 2024","Goku Day 2025","Birthday 2025")
 
 @dataclass
 class GuildBattle:
