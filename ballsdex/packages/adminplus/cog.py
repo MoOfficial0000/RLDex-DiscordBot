@@ -84,6 +84,7 @@ class Adminplus(commands.GroupCog):
     async def completion(
             self,
             interaction: discord.Interaction["BallsDexBot"],
+            user: discord.User | None = None, #user arg does no cooldown version of /dbz completion
             special: SpecialEnabledTransform | None = None,
     ):
         """
@@ -91,18 +92,19 @@ class Adminplus(commands.GroupCog):
 
         Parameters
         ----------
+        user: discord.User
+            The user whose completion you want to view, if not global.
         special: Special
             The special you want to see the completion of
         """
-        user = None
         await interaction.response.defer(thinking=True)
         extra_text = f"{special.name} " if special else ""
         if user is not None:
             try:
-                player = await Player.get(discord_id=user_obj.id)
+                player = await Player.get(discord_id=user.id)
             except DoesNotExist:
                 await interaction.followup.send(
-                    f"There are no "
+                    f"No "
                     f"{extra_text}{settings.plural_collectible_name} yet."
                 )
                 return
@@ -114,7 +116,10 @@ class Adminplus(commands.GroupCog):
         bot_countryballs = {x: y.emoji_id for x, y in balls.items() if y.enabled}
 
         # Set of ball IDs owned by the player
-        filters = {"ball__enabled": True}
+        if user is not None:
+            filters = {"player__discord_id": user.id, "ball__enabled": True}
+        else:
+            filters = {"ball__enabled": True}
         if special:
             filters["special"] = special
             bot_countryballs = {
@@ -188,8 +193,12 @@ class Adminplus(commands.GroupCog):
 
         source = FieldPageSource(entries, per_page=5, inline=False, clear_description=False)
         special_str = f" ({special.name})" if special else ""
+        if user is not None:
+            gtext = f"{user.id}"
+        else:
+            gtext = f"Global"
         source.embed.description = (
-            f"Global {settings.bot_name}{special_str} progression: "
+            f"{gtext} {settings.bot_name}{special_str} progression: "
             f"**{round(len(owned_countryballs) / len(bot_countryballs) * 100, 1)}%**"
         )
         source.embed.colour = discord.Colour.blurple()
