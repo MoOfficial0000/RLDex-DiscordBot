@@ -9,6 +9,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord import Embed
+from discord.ui import Button, View
 
 import asyncio
 import io
@@ -57,6 +58,7 @@ porunga1 = ["<:NamekDB1:1355509351615565934>","<:NamekDB2:1355509354811625634>",
 supershenron1 = ["<:SuperDB1:1355509197126762498>","<:SuperDB2:1355509198875791420>","<:SuperDB3:1355509200939126914>","<:SuperDB4:1355509203380207869>","<:SuperDB5:1355509205242744903>","<:SuperDB6:1355509207331504168>","<:SuperDB7:1355509209411878933>","<:SuperShenron:1311798650246271016>"]
 porungadaima1 = ["<:DemonRealmDB1:1355509715248877638>","<:DemonRealmDB2:1355509710744191134>","<:DemonRealmDB3:1355509713323819059>","<:PorungaDaima:1340039668137463941>"]
 toronbo1 = ["<:CerealianDB1:1355508560284614737>","<:CerealianDB2:1355508557537218791>","<:Toronbo:1322958774088106077>"]
+relics = [321,322,323,324]
 
 @dataclass
 class BattleInstance:
@@ -141,23 +143,23 @@ def update_embed(
     if maxallowed[1]=="EDB":
         emoji1 = ballsemojis[0]
         emoji2 = shenron1[-1]
-        rewardtext = "- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**"
+        rewardtext = "- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- -# **1× Relic Drop!**"
     elif maxallowed[1]=="SDB":
         emoji1 = ballsemojis[1]
         emoji2 = supershenron1[-1]
-        rewardtext = "**- Wild Character Drop! ( ✨60% | 🌌12% )**"
+        rewardtext = "- **Wild Character Drop! ( ✨60% | 🌌12% )**\n- -# **4× Relic Drops!**"
     elif maxallowed[1]=="NDB":
         emoji1 = ballsemojis[2]
         emoji2 = porunga1[-1]
-        rewardtext = "- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**"
+        rewardtext = "- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- -# **1× Relic Drop!**"
     elif maxallowed[1]=="DDB":
         emoji1 = ballsemojis[3]
         emoji2 = porungadaima1[-1]
-        rewardtext = "- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Character Drop! ( ✨2% | 🌌0.4% )**"
+        rewardtext = "- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- -# **2× Relic Drops!**"
     elif maxallowed[1]=="CDB":
         emoji1 = ballsemojis[4]
         emoji2 = toronbo1[-1]
-        rewardtext = "- **Wild Character Drop! ( ✨3% | 🌌0.6% )**\n- **Wild Character Drop! ( ✨3% | 🌌0.6% )**"
+        rewardtext = "- **Wild Character Drop! ( ✨3% | 🌌0.6% )**\n- **Wild Character Drop! ( ✨3% | 🌌0.6% )**\n- -# **2× Relic Drops!**"
     embed = discord.Embed(
         title=f"{settings.collectible_name.title()} Wishing {emoji2} {emoji1}",
         description=(
@@ -223,6 +225,8 @@ def fetch_battle(user: discord.User | discord.Member):
 
     return found_battle
 
+            
+        
 class Wish(commands.GroupCog):
     """
     Wish your Dragon Balls!
@@ -239,6 +243,10 @@ class Wish(commands.GroupCog):
     dbz = app_commands.Group(
         name='dbz', description='Completion commands for wish'
     )
+    craft = app_commands.Group(
+        name='craft', description='Relic crafting commands for wish'
+    )
+    
     async def owned(self, player, character):
         filters = {}
         filters["ball"] = [x for x in balls.values() if x.country == f"{character}"][0]
@@ -248,6 +256,149 @@ class Wish(commands.GroupCog):
             return False
         else:
             return True
+       
+    async def relicupdate(self, interaction: discord.Interaction):
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(style=discord.ButtonStyle.primary, emoji="🌠", label="Craft", disabled=True))
+        await interaction.message.edit(view=view)
+        diffnoofrelics = 0
+        reliclists = [[],[],[],[]]
+        for r in range(len(relics)):
+            rfilters = {}
+            rfilters["ball"] = [x for x in balls.values() if x.id == (relics)[r]][0]
+            rfilters["player__discord_id"] = interaction.user.id
+            reliccheckcount = await BallInstance.filter(**rfilters).count()
+            reliclists[r] = await BallInstance.filter(**rfilters).prefetch_related("ball")
+            if reliccheckcount >= 1:
+                diffnoofrelics += 1
+        if diffnoofrelics < 4:
+            await interaction.response.send_message("You don't have enough relics to craft!",ephemeral=True)
+        else:
+            await interaction.response.defer(thinking=True)
+            reliccounts = [0,0,0,0]
+            for r in range(len(relics)):
+                deleterelic = reliclists[r][0]
+                await deleterelic.delete()
+                rfilters = {}
+                rfilters["ball"] = [x for x in balls.values() if x.id == (relics)[r]][0]
+                rfilters["player__discord_id"] = interaction.user.id
+                reliccheckcount = await BallInstance.filter(**rfilters).count()
+                reliccounts[r] = reliccheckcount
+            embed = discord.Embed(
+                title=f"Relic Crafting",
+                description=f"Craft the 4 relics to receive a random 🌠Relicborne character!"
+            )
+            embed.color=discord.Colour.from_rgb(82,92,145) 
+            embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
+
+            for r in range(len(relics)):
+                relicname=[x for x in balls.values() if x.id == (relics)[r]][0]
+                embed.add_field(
+                    name=f"{self.bot.get_emoji(relicname.emoji_id)} {relicname}",
+                    value=f"Count: {reliccounts[r]}",
+                    inline=True,
+                )
+            cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
+            resultball = await cog.countryball_cls.get_random(interaction.client)
+            ball= [x for x in balls.values() if x.country == f"{resultball.name}"][0]
+            plusatk = ""
+            plushp = ""
+            dasatk = int(settings.max_attack_bonus)
+            dashp = int(settings.max_health_bonus)
+            atkrng = random.randint(-1*dasatk, dasatk)
+            if atkrng >= 0:
+                plusatk = "+"
+            hprng = random.randint(-1*dashp, dashp)
+            if hprng >= 0:
+                plushp = "+"
+            statsresults = f"`({plusatk}{atkrng}ATK/{plushp}{hprng}HP)`"
+            player, created = await Player.get_or_create(discord_id=interaction.user.id)
+            instance = await BallInstance.create(
+                ball= ball,
+                player=player,
+                special = [x for x in specials.values() if x.name == "Relicborne"][0],
+                attack_bonus=atkrng,
+                health_bonus=hprng,
+            )
+            await interaction.followup.send(f"{interaction.user.mention} You crafted **{ball}**! {statsresults}\n\n***🌠 It's a Relicborne character! 🌠***")
+            try:
+                await interaction.response.defer()
+            except discord.errors.InteractionResponded:
+                pass
+            await interaction.message.edit(embed=embed)
+            await asyncio.sleep(5)
+            original_user = interaction.user  # The original crafter
+            new_button = discord.ui.Button(style=discord.ButtonStyle.primary, emoji="🌠", label="Craft")
+
+            async def new_callback(i: discord.Interaction):
+                if i.user != original_user:
+                    await i.response.send_message("This button isn't for you!", ephemeral=True)
+                    return
+                await self.relicupdate(i)
+
+            new_button.callback = new_callback
+
+            view = discord.ui.View(timeout=180)
+            view.add_item(new_button)
+            await interaction.message.edit(view=view)
+    
+    @craft.command(name="relics")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: i.user.id)
+    async def relics(self, interaction: discord.Interaction):
+        """
+        Craft the 4 relics!
+        """
+        await interaction.response.defer(thinking=True)
+        diffnoofrelics = 0
+        reliccounts = [0,0,0,0]
+        for r in range(len(relics)):
+            rfilters = {}
+            rfilters["ball"] = [x for x in balls.values() if x.id == (relics)[r]][0]
+            rfilters["player__discord_id"] = interaction.user.id
+            reliccheckcount = await BallInstance.filter(**rfilters).count()
+            reliccounts[r] = reliccheckcount
+            if reliccheckcount >= 1:
+                diffnoofrelics += 1
+        embed = discord.Embed(
+            title=f"Relic Crafting",
+            description=f"Craft the 4 relics to receive a random 🌠Relicborne character!"
+        )
+        embed.color=discord.Colour.from_rgb(82,92,145) 
+        embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
+        for r in range(len(relics)):
+            relicname=[x for x in balls.values() if x.id == (relics)[r]][0]
+            embed.add_field(
+                name=f"{self.bot.get_emoji(relicname.emoji_id)} {relicname}",
+                value=f"Count: {reliccounts[r]}",
+                inline=True,
+            )
+        original_user = interaction.user
+        
+        start_button = discord.ui.Button(
+            style=discord.ButtonStyle.primary, emoji="🌠", label="Craft"
+        )
+
+        async def protected_callback(button_interaction: discord.Interaction):
+            if button_interaction.user != original_user:
+                await button_interaction.response.send_message(
+                    "This button isn't for you!", ephemeral=True
+                )
+                return
+            await self.relicupdate(button_interaction)
+    
+        # Set callbacks
+
+        start_button.callback = protected_callback
+
+        view = discord.ui.View(timeout=180)
+        
+        view.add_item(start_button)
+
+        await interaction.followup.send(
+            embed=embed,
+            view=view,
+        )
+        
         
     @dbz.command(name="completion")
     @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
@@ -395,25 +546,31 @@ class Wish(commands.GroupCog):
         if maxallowed[1]=="EDB":
             shiny_percentage = -1
             mythical_percentage = -1
+            noofrelics = 1
         elif maxallowed[1]=="SDB":
             shiny_percentage = 60
             mythical_percentage = 30 #multiplied by 100/40 for accurancy since it also relies on shiny not being shiny
             noofrewards = 1
+            noofrelics = 4
         elif maxallowed[1]=="NDB":
             shiny_percentage = -1
             mythical_percentage = -1
+            noofrelics = 1
         elif maxallowed[1]=="DDB":
             shiny_percentage = 2
             mythical_percentage = 0.408
+            noofrelics = 2
         elif maxallowed[1]=="CDB":
             shiny_percentage = 3
             mythical_percentage = 0.619
+            noofrelics = 2
         if textvalue1 =="":
             cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
             for i in range(noofrewards):
                 resultball = await cog.countryball_cls.get_random(interaction.client)
                 while f"{resultball.name}" in shenron+porunga+porungadaima+toronbo+supershenron and f"{resultball.name}" not in dragons:
                     resultball = await cog.countryball_cls.get_random(interaction.client)
+                ball= [x for x in balls.values() if x.country == f"{resultball.name}"][0]
                 shinyresult = ""
                 mythicalresult = ""
                 plusatk = ""
@@ -436,14 +593,26 @@ class Wish(commands.GroupCog):
                     mythicalresult = f"\n*🔮 This {settings.collectible_name} exudes a mythical aura.🔮*"
                     special = [x for x in specials.values() if x.name == "Mythical"][0]
                 statsresults = f"\n`{plusatk}{atkrng}ATK/{plushp}{hprng}HP`"
-                textvalue1 += (f"{resultball.name}{statsresults}{shinyresult}{mythicalresult}\n\n")
+                textvalue1 += (f"{self.bot.get_emoji(ball.emoji_id)} {ball}{statsresults}{shinyresult}{mythicalresult}\n\n")
                 player, created = await Player.get_or_create(discord_id=interaction.user.id)
                 instance = await BallInstance.create(
-                    ball= [x for x in balls.values() if x.country == f"{resultball.name}"][0],
+                    ball= ball,
                     player=player,
                     special=special,
                     attack_bonus=atkrng,
                     health_bonus=hprng,
+                )
+            for i in range(noofrelics):
+                relic_id = random.choice(relics)
+                resultrelic = [x for x in balls.values() if x.id==relic_id][0]
+                textvalue1 += (f"{self.bot.get_emoji(resultrelic.emoji_id)} {resultrelic}\n")
+                player, created = await Player.get_or_create(discord_id=interaction.user.id)
+                instance = await BallInstance.create(
+                    ball= resultrelic,
+                    player=player,
+                    special=None,
+                    attack_bonus=0,
+                    health_bonus=0,
                 )
         embed = discord.Embed(
             title=f"{settings.collectible_name.title()} Wishing",
