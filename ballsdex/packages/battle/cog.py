@@ -39,8 +39,8 @@ if TYPE_CHECKING:
 log = logging.getLogger("ballsdex.packages.battle")
 
 battles = []
-highevent = ("Testers","Birthday Ball","Eid al-Adha","Realm","Event Farmer","American","Dragon Ball")
-lowevent = ("Lunar New Year 2025","Christmas 2024","Summer","Easter 2025","Haunted Hallows 2024","Goku Day 2025","Birthday 2025")
+highevent = ("Testers","Birthday Ball","Eid al-Adha 1445","Realm","Event Farmer","American","Dragon Ball","Aerial Tramway")
+lowevent = ("Lunar New Year 2025","Winted 2024","Summer","Spring Basket 2025","Dark Mist 2024","Goku Day 2025","Birthday 2025","Eid al-Adha 1446")
 
 @dataclass
 class GuildBattle:
@@ -429,9 +429,9 @@ class Battle(commands.GroupCog):
                 buff = 80000 if settings.bot_name == "dragonballdex" else 5000
             elif battlespecial == "Mythical":
                 buff = 160000 if settings.bot_name == "dragonballdex" else 12000
-            elif battlespecial == "Boss" or battlespecial == "Collector":
+            elif battlespecial == "Collector":
                 buff = 100000 if settings.bot_name == "dragonballdex" else 6000
-            elif battlespecial == "Diamond":
+            elif battlespecial == "Boss" or battlespecial == "Diamond":
                 buff = 120000 if settings.bot_name == "dragonballdex" else 8000
             elif battlespecial == "Emerald":
                 buff = 200000 if settings.bot_name == "dragonballdex" else 14000
