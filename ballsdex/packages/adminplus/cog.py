@@ -57,34 +57,11 @@ log = logging.getLogger("ballsdex.packages.adminplus.cog")
 FILENAME_RE = re.compile(r"^(.+)(\.\S+)$")
 
 
-@app_commands.guilds(*settings.admin_guild_ids)
-@app_commands.default_permissions(administrator=True)
-class Adminplus(commands.GroupCog):
-    """
-    Bot admin (plus) commands.
-    """
-
-    def __init__(self, bot: "BallsDexBot"):
-        self.bot = bot
-        self.blacklist.parent = self.__cog_app_commands_group__
-        self.balls.parent = self.__cog_app_commands_group__
-
-    blacklist = app_commands.Group(name="blacklist", description="Bot blacklist management")
-    blacklist_guild = app_commands.Group(
-        name="blacklistguild", description="Guild blacklist management"
-    )
-    balls = app_commands.Group(
-        name=settings.players_group_cog_name, description="Balls management"
-    )
-    logs = app_commands.Group(name="logs", description="Bot logs management")
-    history = app_commands.Group(name="history", description="Trade history management")
-
-    @app_commands.command()
+@app_commands.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def completion(
             self,
             interaction: discord.Interaction["BallsDexBot"],
-            user: discord.User | None = None, #user arg does no cooldown version of /dbz completion
             special: SpecialEnabledTransform | None = None,
     ):
         """
@@ -92,19 +69,18 @@ class Adminplus(commands.GroupCog):
 
         Parameters
         ----------
-        user: discord.User
-            The user whose completion you want to view, if not global.
         special: Special
             The special you want to see the completion of
         """
+        user = None
         await interaction.response.defer(thinking=True)
         extra_text = f"{special.name} " if special else ""
         if user is not None:
             try:
-                player = await Player.get(discord_id=user.id)
+                player = await Player.get(discord_id=user_obj.id)
             except DoesNotExist:
                 await interaction.followup.send(
-                    f"No "
+                    f"There are no "
                     f"{extra_text}{settings.plural_collectible_name} yet."
                 )
                 return
@@ -116,10 +92,7 @@ class Adminplus(commands.GroupCog):
         bot_countryballs = {x: y.emoji_id for x, y in balls.items() if y.enabled}
 
         # Set of ball IDs owned by the player
-        if user is not None:
-            filters = {"player__discord_id": user.id, "ball__enabled": True}
-        else:
-            filters = {"ball__enabled": True}
+        filters = {"ball__enabled": True}
         if special:
             filters["special"] = special
             bot_countryballs = {
@@ -193,12 +166,8 @@ class Adminplus(commands.GroupCog):
 
         source = FieldPageSource(entries, per_page=5, inline=False, clear_description=False)
         special_str = f" ({special.name})" if special else ""
-        if user is not None:
-            gtext = f"{user.id}"
-        else:
-            gtext = f"Global"
         source.embed.description = (
-            f"{gtext} {settings.bot_name}{special_str} progression: "
+            f"Global {settings.bot_name}{special_str} progression: "
             f"**{round(len(owned_countryballs) / len(bot_countryballs) * 100, 1)}%**"
         )
         source.embed.colour = discord.Colour.blurple()
@@ -206,7 +175,6 @@ class Adminplus(commands.GroupCog):
 
         pages = Pages(source=source, interaction=interaction, compact=True)
         await pages.start()
-
 
 
     @app_commands.command()
