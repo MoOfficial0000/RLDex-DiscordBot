@@ -429,7 +429,7 @@ class Battle(commands.GroupCog):
                 buff = 80000 if settings.bot_name == "dragonballdex" else 5000
             elif battlespecial == "Mythical":
                 buff = 160000 if settings.bot_name == "dragonballdex" else 12000
-            elif battlespecial == "Collector":
+            elif battlespecial == "Collector" or battlespecial == "Relicborne":
                 buff = 100000 if settings.bot_name == "dragonballdex" else 6000
             elif battlespecial == "Boss" or battlespecial == "Diamond":
                 buff = 120000 if settings.bot_name == "dragonballdex" else 8000
