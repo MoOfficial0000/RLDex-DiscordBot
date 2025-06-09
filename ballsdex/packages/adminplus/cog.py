@@ -56,8 +56,29 @@ if TYPE_CHECKING:
 log = logging.getLogger("ballsdex.packages.adminplus.cog")
 FILENAME_RE = re.compile(r"^(.+)(\.\S+)$")
 
+@app_commands.guilds(*settings.admin_guild_ids)
+@app_commands.default_permissions(administrator=True)
+class Adminplus(commands.GroupCog):
+    """
+    Bot admin (plus) commands.
+    """
 
-@app_commands.command()
+    def __init__(self, bot: "BallsDexBot"):
+        self.bot = bot
+        self.blacklist.parent = self.__cog_app_commands_group__
+        self.balls.parent = self.__cog_app_commands_group__
+
+    blacklist = app_commands.Group(name="blacklist", description="Bot blacklist management")
+    blacklist_guild = app_commands.Group(
+        name="blacklistguild", description="Guild blacklist management"
+    )
+    balls = app_commands.Group(
+        name=settings.players_group_cog_name, description="Balls management"
+    )
+    logs = app_commands.Group(name="logs", description="Bot logs management")
+    history = app_commands.Group(name="history", description="Trade history management")
+
+    @app_commands.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
     async def completion(
             self,
