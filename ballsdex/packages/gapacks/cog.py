@@ -31,23 +31,11 @@ log = logging.getLogger("ballsdex.packages.gaPacks")
 
 class gaPacks(commands.Cog):
     """
-    Simple vote commands.
+    Simple extra commands.
     """
 
     def __init__(self, bot: "BallsDexBot"):
         self.bot = bot
-
-    @app_commands.command()
-    @app_commands.checks.cooldown(1, 10, key=lambda i: i.user.id)
-    async def vote(self, interaction: discord.Interaction,):
-        """
-        Get the link to the bot-vote Website.
-        """
-        await interaction.response.send_message(
-                f"You can vote for {settings.bot_name} here: https://top.gg/user/578344716639604736\nOnce you have voted, you can make a ticket and claim a FREE CARD on our [Discord Server!]({settings.discord_invite})",
-                ephemeral=True,
-            )
-        return
     
     @app_commands.command()
     @app_commands.checks.cooldown(1, 10, key=lambda i: i.user.id)
