@@ -440,7 +440,7 @@ class Wish(commands.GroupCog):
             description=f"Dragon Ball completion of {user_obj.mention}",
         )
         embed.color=discord.Colour.from_rgb(0,0,255)
-        embed.set_author(name=user_obj, icon_url=user_obj.avatar.url)
+        embed.set_author(name=user_obj.display_name, icon_url=user_obj.display_avatar.url)
         embed.set_footer(text="Use '/dbz completion' for the full dex completion.")
 
         fullresult = []
