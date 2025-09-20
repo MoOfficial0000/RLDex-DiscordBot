@@ -72,7 +72,7 @@ else:
     dCommonRarity = 233
 dRoundingOption = 1 
 
-uncountablespecials = ("Boss","Staff","Emerald","Shiny","Mythical","Relicborne","Collector","Diamond","Xeno Goku Black","Ultra Gogito","Goku Day","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna")
+uncountablespecials = ("Champion Edition Goku","Champion Edition Vegeta","Boss","Staff","Emerald","Shiny","Mythical","Relicborne","Collector","Diamond","Xeno Goku Black","Ultra Gogito","Goku Day","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna")
 
 log = logging.getLogger("ballsdex.packages.collector.cog")
 
