@@ -338,12 +338,12 @@ class Wish(commands.GroupCog):
 
             new_button.callback = new_callback
 
-            view = discord.ui.View(timeout=180)
+            view = discord.ui.View(timeout=60)
             view.add_item(new_button)
             await interaction.message.edit(view=view)
     
     @craft.command(name="relics")
-    @app_commands.checks.cooldown(1, 5, key=lambda i: i.user.id)
+    @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
     async def relics(self, interaction: discord.Interaction):
         """
         Craft the 4 relics!
@@ -390,7 +390,7 @@ class Wish(commands.GroupCog):
 
         start_button.callback = protected_callback
 
-        view = discord.ui.View(timeout=180)
+        view = discord.ui.View(timeout=60)
         
         view.add_item(start_button)
 
