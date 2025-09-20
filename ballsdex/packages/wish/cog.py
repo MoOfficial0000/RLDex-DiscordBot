@@ -399,7 +399,88 @@ class Wish(commands.GroupCog):
             view=view,
         )
         
-        
+    @craft.command(name="relics_2")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: i.user.id)
+    @app_commands.choices(
+        chosen_relic=[
+            app_commands.Choice(name="Relic of Divinity", value=324),
+            app_commands.Choice(name="Relic of Monarchy", value=323),
+            app_commands.Choice(name="Relic of Destruction", value=322),
+            app_commands.Choice(name="Relic of Tyranny", value=321),
+        ]
+    )
+    async def specificrelic(
+        self,
+        interaction: discord.Interaction,
+        owned_relic1: BallInstanceTransform,
+        owned_relic2: BallInstanceTransform,
+        chosen_relic: int
+    ):
+        """
+        Fuse two relics to form a chosen relic.
+
+        Parameters
+        ----------
+        owned_relic1: BallInstanceTransform
+            Select the first relic you own for fusion.
+        owned_relic2: BallInstanceTransform
+            Select the second relic you own for fusion.
+        chosen_relic: int
+            The relic you want to create from the fusion.
+        """
+        new_player, _ = await Player.get_or_create(discord_id=417286033487429633)
+        owned_relic1.player = new_player
+        await owned_relic1.save()
+        owned_relic2.player = new_player
+        await owned_relic2.save()
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        old_player, _ = await Player.get_or_create(discord_id=interaction.user.id)
+        if (await owned_relic1.ball).id not in relics or (await owned_relic2.ball).id not in relics:
+            await interaction.followup.send(
+                "You must select valid relics!",
+                ephemeral=True
+            )
+            owned_relic1.player = old_player
+            await owned_relic1.save()
+            owned_relic2.player = old_player
+            await owned_relic2.save()
+            return
+
+        if owned_relic1 == owned_relic2:
+            await interaction.followup.send(
+                "You cannot select the same relic twice.",
+                ephemeral=True
+            )
+            owned_relic1.player = old_player
+            await owned_relic1.save()
+            owned_relic2.player = old_player
+            await owned_relic2.save()
+            return
+
+        if chosen_relic in ((await owned_relic1.ball).id, (await owned_relic2.ball).id):
+            await interaction.followup.send(
+                "The chosen relic must be different from the relics you are using!", 
+                ephemeral=True
+            )
+            owned_relic1.player = old_player
+            await owned_relic1.save()
+            owned_relic2.player = old_player
+            await owned_relic2.save()
+            return
+        resultrelic = [x for x in balls.values() if x.id==chosen_relic][0]
+        instance = await BallInstance.create(
+                    ball=resultrelic,
+                    player=old_player,
+                    special=None,
+                    attack_bonus=0,
+                    health_bonus=0,
+                )
+        await interaction.followup.send(
+            f"You successfully fused {owned_relic1} and {owned_relic2} "
+            f"to create {resultrelic}!",
+            ephemeral=True
+        )
+    
     @dbz.command(name="completion")
     @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
     async def completion(self, interaction: discord.Interaction, user: discord.User | None = None):
