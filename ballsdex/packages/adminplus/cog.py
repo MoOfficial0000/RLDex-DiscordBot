@@ -418,11 +418,12 @@ class Adminplus(commands.GroupCog):
             The user you want to count the balls of.
         special: Special
         """
+        await interaction.response.defer(thinking=True,ephemeral=True)
         # Filter enabled collectibles
         enabled_collectibles = [x for x in balls.values() if x.enabled]
 
         if not enabled_collectibles:
-            await interaction.response.send_message(
+            await interaction.response.followup(
                 f"There are no collectibles registered in {settings.bot_name} yet.",
                 ephemeral=True,
             )
