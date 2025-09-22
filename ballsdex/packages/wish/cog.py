@@ -448,7 +448,7 @@ class Wish(commands.GroupCog):
 
         if owned_relic1 == owned_relic2:
             await interaction.followup.send(
-                "You cannot select the same relic twice.",
+                "You cannot select relic with the same (Character #ID) twice.",
                 ephemeral=True
             )
             owned_relic1.player = old_player
