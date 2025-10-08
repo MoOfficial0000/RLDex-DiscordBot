@@ -454,6 +454,7 @@ class Boss(commands.GroupCog):
             ccvalue = 100000
             diamondvalue = 120000
             emeraldvalue = 200000
+            rubyvalue = 360000
             eventvalue1 = 50000
             eventvalue2 = 30000
             blackvalue = eventvalue1
@@ -464,6 +465,7 @@ class Boss(commands.GroupCog):
             ccvalue = 6000
             diamondvalue = 8000
             emeraldvalue = 14000
+            rubyvalue = 18000
             eventvalue1 = 3000
             eventvalue2 = 2000
             blackvalue = 1250
@@ -480,49 +482,40 @@ class Boss(commands.GroupCog):
         else:
             ballhealth = ball.health
 
-        messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack} ATK and {ballhealth} HP"
-        if "✨" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{shinyvalue} ATK and {ballhealth}+{shinyvalue} HP"
-            ballhealth += shinyvalue
-            ballattack += shinyvalue
-        elif "🌌" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{mythicalvalue} ATK and {ballhealth}+{mythicalvalue} HP"
-            ballhealth += mythicalvalue
-            ballattack += mythicalvalue
-        elif "🟨" in messageforuser or "⬜" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+1500 ATK and {ballhealth}+1500 HP"
-            ballhealth += 1500
-            ballattack += 1500
-        elif "⬛" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+1250 ATK and {ballhealth}+1250 HP"
-            ballhealth += blackvalue
-            ballattack += blackvalue
-        elif "🟦" in messageforuser or "🟥" in messageforuser or "🟩" in messageforuser or "💛" in messageforuser or "🩵" in messageforuser or "🟪" in messageforuser or "💚" in messageforuser or "🟧" in messageforuser or "🩶" in messageforuser or "🟫" in messageforuser or "🩷" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+1000 ATK and {ballhealth}+1000 HP"
-            ballhealth += 1000
-            ballattack += 1000
-        elif "🚀" in messageforuser or "🎩" in messageforuser or "🐑" in messageforuser or "🔮" in messageforuser or "🇺🇸" in messageforuser or "👨‍🌾" in messageforuser or "🐉" in messageforuser or "🚡" in messageforuser or "🎉" in messageforuser or "👑" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{eventvalue1} ATK and {ballhealth}+{eventvalue1} HP"
-            ballhealth += eventvalue1
-            ballattack += eventvalue1
-        elif "☀" in messageforuser or "☀️" in messageforuser or "👻" in messageforuser or "💥" in messageforuser or "☃️" in messageforuser or "🧧" in messageforuser or "🧺" in messageforuser or "🌙" in messageforuser or "🐈" in messageforuser or "🍁" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{eventvalue2} ATK and {ballhealth}+{eventvalue2} HP"
-            ballhealth += eventvalue2
-            ballattack += eventvalue2
-        elif "🏆" in messageforuser or "🌠" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{ccvalue} ATK and {ballhealth}+{ccvalue} HP"
-            ballhealth += ccvalue
-            ballattack += ccvalue
-        elif "❇️" in messageforuser or "❇" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{emeraldvalue} ATK and {ballhealth}+{emeraldvalue} HP"
-            ballhealth += emeraldvalue
-            ballattack += emeraldvalue
-        elif "⚔️" in messageforuser or "⚔" in messageforuser or "💎" in messageforuser:
-            messageforuser = f"{ball.description(short=True, include_emoji=True, bot=self.bot)} has been selected for this round, with {ballattack}+{diamondvalue} ATK and {ballhealth}+{diamondvalue} HP"
-            ballhealth += diamondvalue
-            ballattack += diamondvalue
-        else:
-            pass
+        emoji_groups = {
+            ("✨",): shinyvalue,
+            ("🌌",): mythicalvalue,
+            ("🟨", "⬜"): 1500,
+            ("⬛",): blackvalue,
+            ("🟦", "🟥", "🟩", "💛", "🩵", "🟪", "💚", "🟧", "🩶", "🟫", "🩷"): 1000,
+            ("🚀", "🎩", "🐑", "🔮", "🇺🇸", "👨‍🌾", "🐉", "🚡", "🎉", "👑"): eventvalue1,
+            ("☀", "☀️", "👻", "💥", "☃️", "🧧", "🧺", "🌙", "🐈", "🍁"): eventvalue2,
+            ("🏆", "🌠"): ccvalue,
+            ("❇️", "❇"): emeraldvalue,
+            ("⚔️", "⚔", "💎"): diamondvalue,
+            ("♦️","♦"): rubyvalue,
+        }
+
+        # Default base message
+        originaldescription = ball.description(short=True, include_emoji=True, bot=self.bot)
+        originalballattack = ballattack
+        originalballhealth = ballhealth
+        messageforuser = (
+            f"{originaldescription} "
+            f"has been selected for this round, with {originalballattack} ATK and {originalballhealth} HP"
+        )
+
+        # Check emoji groups and apply bonuses
+        for emojis, value in emoji_groups.items():
+            if any(e in messageforuser for e in emojis):
+                ballattack += value
+                ballhealth += value
+                messageforuser = (
+                    f"{originaldescription} "
+                    f"has been selected for this round, with {originalballattack}+{value} ATK and {originalballhealth}+{value} HP"
+                )
+                break  # stop after first match
+
             
         if not self.attack:
             self.bossHP -= ballattack
