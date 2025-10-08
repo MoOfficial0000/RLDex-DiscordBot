@@ -174,7 +174,7 @@ class gaPacks(commands.Cog):
 
         # This is the number of countryballs who are displayed at one page,
         # you can change this, but keep in mind: discord has an embed size limit.
-        per_page = 5
+        per_page = 10
         special_str = f" ({special.name})" if special else ""
         if nothingcheck == "":
             return await interaction.response.send_message(
