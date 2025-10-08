@@ -192,7 +192,10 @@ class Collector(commands.GroupCog):
         relicborne_number = math.ceil(diamond_number/1.5)
         mythical_number = int(diamond_number/2)
         missinglistr = []
-        specialsneededlist = ["1×`Emerald`","3×`Boss`",f"{mythical_number}×`Extra Mythical` [{1+mythical_number} total]",f"{relicborne_number}×`Extra Relicborne` [{1+relicborne_number} total]"]
+        if settings.bot_name == "dragonballdex":
+            specialsneededlist = ["1×`Emerald`","3×`Boss`",f"{mythical_number}×`Extra Mythical` [{1+mythical_number} total]",f"{relicborne_number}×`Extra Relicborne` [{1+relicborne_number} total]"]
+        else:
+            specialsneededlist = ["1×`Emerald`","3×`Boss`",f"{mythical_number}×`Extra Mythical` [{1+mythical_number} total]"]
         passedr = True
         basefilters = {}
         basefilters["ball"] = countryball
@@ -228,15 +231,16 @@ class Collector(commands.GroupCog):
         if mythicalcount < 1 + mythical_number:
             missinglistr.append(f"`{mythical_number} Extra Mythical`")
             passedr = False
-        relicbornespecial = [x for x in specials.values() if x.name == "Relicborne"][0]
-        relicbornefilters = {}
-        relicbornefilters["ball"] = countryball
-        relicbornefilters["special"]= relicbornespecial
-        relicbornefilters["player__discord_id"] = user.id
-        relicbornecount = await BallInstance.filter(**relicbornefilters).count()
-        if relicbornecount < 1 + relicborne_number:
-            missinglistr.append(f"`{relicborne_number} Extra Relicborne`")
-            passedr = False
+        if settings.bot_name == "dragonballdex":
+            relicbornespecial = [x for x in specials.values() if x.name == "Relicborne"][0]
+            relicbornefilters = {}
+            relicbornefilters["ball"] = countryball
+            relicbornefilters["special"]= relicbornespecial
+            relicbornefilters["player__discord_id"] = user.id
+            relicbornecount = await BallInstance.filter(**relicbornefilters).count()
+            if relicbornecount < 1 + relicborne_number:
+                missinglistr.append(f"`{relicborne_number} Extra Relicborne`")
+                passedr = False
         if passedr:
             replyruby = "passed"
         else:
@@ -472,7 +476,10 @@ class Collector(commands.GroupCog):
                 rarity1 = int(int((gradient*(collectible.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
             
             if ruby:
-                entry = (name, f"{emote}{shinytext} required: **{collector_extra}** (**{collector_total} total**)\n+`1❇️`+`3⚔️`+`{mythical_number}🌌({mythical_number+1})`+`{relicborne_number}🌠({relicborne_number+1})`")
+                if settings.bot_name == "dragonballdex":
+                    entry = (name, f"{emote}{shinytext} required: **{collector_extra}** (**{collector_total} total**)\n+`1❇️`+`3⚔️`+`{mythical_number}🌌({mythical_number+1})`+`{relicborne_number}🌠({relicborne_number+1})`")
+                else:
+                    entry = (name, f"{emote}{shinytext} required: **{collector_extra}** (**{collector_total} total**)\n+`1❇️`+`3⚔️`+`{mythical_number}🌌({mythical_number+1})`")
             else:
                 entry = (name, f"{emote}{shinytext} required: {rarity1}")
             entries.append(entry)
@@ -485,7 +492,10 @@ class Collector(commands.GroupCog):
             f"__**{settings.bot_name} {text0} Card List**__"
         )
         if ruby:
-            source.embed.description += "\n-# Specials Format:\n-# `1❇️`+`3⚔️`+`Extra🌌(total)`+`Extra🌠(total)`"
+            if settings.bot_name == "dragonballdex":
+                source.embed.description += "\n-# Specials Format:\n-# `1❇️`+`3⚔️`+`Extra🌌(total)`+`Extra🌠(total)`"
+            else:
+                source.embed.description += "\n-# Specials Format:\n-# `1❇️`+`3⚔️`+`Extra🌌(total)`"
         source.embed.colour = discord.Colour.from_rgb(190,100,190)
         source.embed.set_author(
             name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
