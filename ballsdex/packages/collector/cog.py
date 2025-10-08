@@ -1,6 +1,7 @@
 import logging
 
 import discord
+import math
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import Button, View, button
@@ -72,7 +73,7 @@ else:
     dCommonRarity = 233
 dRoundingOption = 1 
 
-uncountablespecials = ("Champion Edition Goku","Champion Edition Vegeta","Boss","Staff","Emerald","Shiny","Mythical","Relicborne","Collector","Diamond","Xeno Goku Black","Ultra Gogito","Goku Day","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna")
+uncountablespecials = ("Ruby","Boss","Staff","Emerald","Shiny","Mythical","Collector","Diamond","Xeno Goku Black","Ultra Gogito","Goku Day","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna")
 
 log = logging.getLogger("ballsdex.packages.collector.cog")
 
@@ -102,7 +103,7 @@ class Collector(commands.GroupCog):
             excludedspecials = uncountablespecials
         missinglist = []
         if settings.bot_name == "dragonballdex":
-            existinglist = ["Mythical","Collector","Diamond","Relicborne"]
+            existinglist = ["Mythical","Collector","Diamond"]
         else:
             existinglist = ["Mythical","Collector","Diamond","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
         extrashinies = 0
@@ -156,7 +157,7 @@ class Collector(commands.GroupCog):
                 if passcount2 > 0:
                     missingoneofones -= 1
                 else:
-                    missingonetext.append(f"{ones} / Additional Extra Shiny")
+                    missingonetext.append(f"{ones} / Aditional Extra Shiny")
         if missingoneofones >= 1:
             passed = False
             for mt in missingonetext:
@@ -180,6 +181,81 @@ class Collector(commands.GroupCog):
             replyanswer = (f"# Emerald {countryball.country} {settings.collectible_name}:\n{lines}\n{missinglines}\n")
         return replyanswer
 
+    async def ruby(
+        self,
+        user,
+        countryball: BallEnabledTransform,
+        ):
+        collector_number = int(int((gradient*(countryball.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
+        collector_extra = math.ceil(collector_number*1.5)
+        collector_total = collector_number + collector_extra
+        diamond_number = int(int((dgradient*(countryball.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
+        relicborne_number = math.ceil(diamond_number/1.5)
+        mythical_number = int(diamond_number/2)
+        missinglistr = []
+        specialsneededlist = ["1×`Emerald`","3×`Boss`",f"{mythical_number}×`Extra Mythical` [{1+mythical_number} total]",f"{relicborne_number}×`Extra Relicborne` [{1+relicborne_number} total]"]
+        passedr = True
+        basefilters = {}
+        basefilters["ball"] = countryball
+        basefilters["player__discord_id"] = user.id
+        basecount = await BallInstance.filter(**basefilters).count()
+        if basecount < collector_total:
+            missinglistr.append(f"`{collector_extra} Extra`")
+            passedr = False
+        emeraldspecial = [x for x in specials.values() if x.name == "Emerald"][0]
+        emeraldfilters = {}
+        emeraldfilters["ball"] = countryball
+        emeraldfilters["special"] = emeraldspecial
+        emeraldfilters["player__discord_id"] = user.id
+        emeraldcount = await BallInstance.filter(**emeraldfilters).count()
+        if emeraldcount == 0:
+            missinglistr.append("`Emerald`")
+            passedr = False
+        bossspecial = [x for x in specials.values() if x.name == "Boss"][0]
+        bossfilters = {}
+        bossfilters["ball"] = countryball
+        bossfilters["special"] = bossspecial
+        bossfilters["player__discord_id"] = user.id
+        bosscount = await BallInstance.filter(**bossfilters).count()
+        if bosscount < 3:
+            missinglistr.append("`3 Boss`")
+            passedr = False
+        mythicalspecial = [x for x in specials.values() if x.name == "Mythical"][0]
+        mythicalfilters = {}
+        mythicalfilters["ball"] = countryball
+        mythicalfilters["special"]= mythicalspecial
+        mythicalfilters["player__discord_id"] = user.id
+        mythicalcount = await BallInstance.filter(**mythicalfilters).count()
+        if mythicalcount < 1 + mythical_number:
+            missinglistr.append(f"`{mythical_number} Extra Mythical`")
+            passedr = False
+        relicbornespecial = [x for x in specials.values() if x.name == "Relicborne"][0]
+        relicbornefilters = {}
+        relicbornefilters["ball"] = countryball
+        relicbornefilters["special"]= relicbornespecial
+        relicbornefilters["player__discord_id"] = user.id
+        relicbornecount = await BallInstance.filter(**relicbornefilters).count()
+        if relicbornecount < 1 + relicborne_number:
+            missinglistr.append(f"`{relicborne_number} Extra Relicborne`")
+            passedr = False
+        if passedr:
+            replyruby = "passed"
+        else:
+            lines = (
+                f"You need **{collector_extra} extra {countryball.country}** "
+                f"(**{collector_total} total**; you currently have `{basecount}`) "
+                "and the required specials below to create a **Ruby character**.\n\n"
+                "Required Specials:\n"
+            )
+            missinglines = "You are currently missing:\n"
+            for s in specialsneededlist:
+                lines+=f"{s}\n"
+            for m in missinglistr:
+                missinglines+=f"{m}\n"
+            replyruby = (f"# Ruby {countryball.country} {settings.collectible_name}:\n{lines}\n{missinglines}\n")
+        return replyruby
+        
+
         
     @app_commands.command()
     @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
@@ -188,6 +264,7 @@ class Collector(commands.GroupCog):
             app_commands.Choice(name="Collector", value="Collector"),
             app_commands.Choice(name="Diamond", value="Diamond"),
             app_commands.Choice(name="Emerald", value="Emerald"),
+            app_commands.Choice(name="Ruby", value="Ruby"),
         ]
     )
     async def card(
@@ -197,7 +274,7 @@ class Collector(commands.GroupCog):
         collector_type: str
         ):
         """
-        Get the collector card for a countryball - made by Kingofthehill4965, modified by MoOfficial.
+        Get the collector card for a countryball - collector made by Kingofthehill4965, diamond/emerald/ruby by MoOfficial.
 
         Parameters
         ----------
@@ -233,6 +310,32 @@ class Collector(commands.GroupCog):
                 special=checkspecial,
                 )
                 await interaction.followup.send(f"Congrats! You are now a {countryball.country} emerald collector.")
+            else:
+                await interaction.followup.send(answerreply)
+            return
+        elif collector_type == "Ruby":
+            #check if emerald exists
+            checkfilter = {}
+            checkspecial = [x for x in specials.values() if x.name == "Ruby"][0]
+            checkfilter["special"] = checkspecial
+            checkfilter["player__discord_id"] = interaction.user.id
+            checkfilter["ball"] = countryball
+            checkcounter = await BallInstance.filter(**checkfilter).count()
+            if checkcounter >= 1:
+                return await interaction.followup.send(
+                    f"You already have {countryball.country} ruby card."
+                )
+            answerreply = await self.ruby(interaction.user, countryball)
+            if answerreply == "passed":
+                player, created = await Player.get_or_create(discord_id=interaction.user.id)
+                await BallInstance.create(
+                ball=countryball,
+                player=player,
+                attack_bonus=0,
+                health_bonus=0,
+                special=checkspecial,
+                )
+                await interaction.followup.send(f"Congrats! You are now a {countryball.country} ruby collector.")
             else:
                 await interaction.followup.send(answerreply)
             return
@@ -306,6 +409,7 @@ class Collector(commands.GroupCog):
         collector_type=[
             app_commands.Choice(name="Collector", value="Collector"),
             app_commands.Choice(name="Diamond", value="Diamond"),
+            app_commands.Choice(name="Ruby", value="Ruby")
         ]
     )
     async def list(self, interaction: discord.Interaction["BallsDexBot"], collector_type: str):
@@ -318,10 +422,13 @@ class Collector(commands.GroupCog):
         collector_type: str
             The type of card you want to view
         """
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        diamond=False
+        ruby=False
         if collector_type == "Diamond":
             diamond = True
-        else:
-            diamond = False
+        if collector_type == "Ruby":
+            ruby = True
         # Filter enabled collectibles
         enabled_collectibles = [x for x in balls.values() if x.enabled]
 
@@ -339,6 +446,9 @@ class Collector(commands.GroupCog):
         if diamond:
             text0 = "Diamond"
             shinytext = "✨Shinies"
+        elif ruby:
+            text0 = "Ruby"
+            shinytext = "Extra Amount"
         else:
             text0 = "Collector"
             shinytext = "Amount"
@@ -352,19 +462,31 @@ class Collector(commands.GroupCog):
                 emote = "N/A"
             if diamond:
                 rarity1 = int(int((dgradient*(collectible.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
+            elif ruby:
+                collector_number = int(int((gradient*(collectible.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
+                collector_extra = math.ceil(collector_number*1.5)
+                collector_total = collector_number + collector_extra
+                diamond_number = int(int((dgradient*(collectible.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
+                relicborne_number = math.ceil(diamond_number/1.5)
+                mythical_number = int(diamond_number/2)
             else:
                 rarity1 = int(int((gradient*(collectible.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
             
-            entry = (name, f"{emote}{shinytext} required: {rarity1}")
+            if ruby:
+                entry = (name, f"{emote}{shinytext} required: **{collector_extra}** (**{collector_total} total**)\n+`1❇️`+`3⚔️`+`{mythical_number}🌌({mythical_number+1})`+`{relicborne_number}🌠({relicborne_number+1})`")
+            else:
+                entry = (name, f"{emote}{shinytext} required: {rarity1}")
             entries.append(entry)
         # This is the number of countryballs which are displayed at one page,
         # you can change this, but keep in mind: discord has an embed size limit.
-        per_page = 5
+        per_page = 10
 
         source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
         source.embed.description = (
             f"__**{settings.bot_name} {text0} Card List**__"
         )
+        if ruby:
+            source.embed.description += "\n-# Specials Format:\n-# `1❇️`+`3⚔️`+`Extra🌌(total)`+`Extra🌠(total)`"
         source.embed.colour = discord.Colour.from_rgb(190,100,190)
         source.embed.set_author(
             name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
@@ -389,6 +511,7 @@ class Collector(commands.GroupCog):
             app_commands.Choice(name="Collector", value="Collector"),
             app_commands.Choice(name="Diamond", value="Diamond"),
             app_commands.Choice(name="Emerald", value="Emerald"),
+            app_commands.Choice(name="Ruby", value="Ruby"),
         ]
     )
     async def check(
@@ -439,7 +562,7 @@ class Collector(commands.GroupCog):
         balls = await BallInstance.filter(**filters).prefetch_related(
                         "player","special","ball"
                     )
-        if collector_type != "Emerald":
+        if collector_type == "Diamond" or collector_type == "Collector":
             for ball in balls:
                 if ball.ball.enabled == False:
                     continue
@@ -481,7 +604,10 @@ class Collector(commands.GroupCog):
                 if ball.ball.enabled == False:
                     continue
                 player = await self.bot.fetch_user(int(f"{ball.player}"))
-                answerreply = await self.emerald(player, ball.ball)
+                if collector_type == "Emerald":
+                    answerreply = await self.emerald(player, ball.ball)
+                else:
+                    answerreply = await self.ruby(player, ball.ball)
                 if answerreply == "passed":
                     meet = (f"**Enough to maintain ✅**\n---")
                     if option == "ALL":
@@ -498,9 +624,12 @@ class Collector(commands.GroupCog):
         elif collector_type == "Collector":
             text0 = "collector"
             shiny0 = ""
-        else:
+        elif collector_type == "Emerald":
             text0 = "emerald"
             shiny0 = " special"
+        else:
+            text0 = "ruby"
+            shiny0 = " characters and/or special"
             
         if len(entries) == 0:
             if countryball:
@@ -554,7 +683,7 @@ class Collector(commands.GroupCog):
             return
         
         else:
-            per_page = 5
+            per_page = 10
 
             source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
             source.embed.description = (
