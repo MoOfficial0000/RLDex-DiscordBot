@@ -435,6 +435,8 @@ class Battle(commands.GroupCog):
                 buff = 120000 if settings.bot_name == "dragonballdex" else 8000
             elif battlespecial == "Emerald":
                 buff = 200000 if settings.bot_name == "dragonballdex" else 14000
+            elif battlespecial == "Ruby":
+                buff = 360000 if settings.bot_name == "dragonballdex" else 18000
             elif battlespecial in highevent:
                 buff = 50000 if settings.bot_name == "dragonballdex" else 3000
             elif battlespecial in lowevent:
@@ -530,12 +532,14 @@ class Battle(commands.GroupCog):
                 buff = 80000 if settings.bot_name == "dragonballdex" else 5000
             elif battlespecial == "Mythical":
                 buff = 160000 if settings.bot_name == "dragonballdex" else 12000
-            elif battlespecial == "Boss" or battlespecial == "Collector":
+            elif battlespecial == "Collector" or battlespecial == "Relicborne":
                 buff = 100000 if settings.bot_name == "dragonballdex" else 6000
-            elif battlespecial == "Diamond":
+            elif battlespecial == "Boss" or battlespecial == "Diamond":
                 buff = 120000 if settings.bot_name == "dragonballdex" else 8000
             elif battlespecial == "Emerald":
                 buff = 200000 if settings.bot_name == "dragonballdex" else 14000
+            elif battlespecial == "Ruby":
+                buff = 360000 if settings.bot_name == "dragonballdex" else 18000
             elif battlespecial in highevent:
                 buff = 50000 if settings.bot_name == "dragonballdex" else 3000
             elif battlespecial in lowevent:
@@ -567,6 +571,7 @@ class Battle(commands.GroupCog):
                 (countryballattack + buff),
                 self.bot.get_emoji(countryball.countryball.emoji_id),
             )
+
 
             # Check if ball has already been added
 
