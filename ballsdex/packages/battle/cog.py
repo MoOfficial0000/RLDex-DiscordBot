@@ -171,10 +171,23 @@ class Battle(commands.GroupCog):
     )
     
     async def start_battle(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         guild_battle = fetch_battle(interaction.user)
+        if interaction.user == guild_battle.author:
+            if guild_battle.author_ready == True:
+                await interaction.followup.send(
+                    f"You have already readied up! Please wait...",ephemeral=True
+                )
+                return
+        elif interaction.user == guild_battle.opponent:
+            if guild_battle.opponent_ready == True:
+                await interaction.response.followup(
+                    f"You have already readied up! Please wait...",ephemeral=True
+                )
+                return
 
         if guild_battle is None:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "You aren't a part of this battle.", ephemeral=True
             )
             return
@@ -189,8 +202,8 @@ class Battle(commands.GroupCog):
 
         if guild_battle.author_ready and guild_battle.opponent_ready:
             if not (guild_battle.battle.p1_balls and guild_battle.battle.p2_balls):
-                await interaction.response.send_message(
-                    f"Both players must add {settings.plural_collectible_name}!"
+                await interaction.followup.send(
+                    f"Both players must add {settings.plural_collectible_name}!",ephemeral=True
                 )
                 return
             new_view = create_disabled_buttons()
@@ -217,7 +230,6 @@ class Battle(commands.GroupCog):
             )
             embed.set_footer(text="Battle log is attached.")
 
-            await interaction.response.defer()
             await interaction.message.edit(
                 content=f"{guild_battle.author.mention} vs {guild_battle.opponent.mention}",
                 embed=embed,
@@ -234,7 +246,7 @@ class Battle(commands.GroupCog):
         else:
             # One player is ready, waiting for the other player
 
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"Done! Waiting for the other player to press 'Ready'.", ephemeral=True
             )
 
