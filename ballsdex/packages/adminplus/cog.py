@@ -365,8 +365,8 @@ class Adminplus(commands.GroupCog):
     async def give(
         self,
         interaction: discord.Interaction,
-        countryball: BallEnabledTransform,
         user: discord.User,
+        countryball: BallEnabledTransform | None = None,
         special: SpecialTransform | None = None,
         health_bonus: app_commands.Range[int, -1*settings.max_health_bonus, settings.max_health_bonus] = None,
         attack_bonus: app_commands.Range[int, -1*settings.max_attack_bonus, settings.max_attack_bonus] = None,
@@ -376,8 +376,9 @@ class Adminplus(commands.GroupCog):
 
         Parameters
         ----------
-        countryball: Ball
         user: discord.User
+        countryball: Ball
+            Omit this to make it random.
         special: Special | None
         health_bonus: int | None
             Omit this to make it random.
@@ -385,12 +386,17 @@ class Adminplus(commands.GroupCog):
             Omit this to make it random.
         """
         # the transformers triggered a response, meaning user tried an incorrect input
+        if countryball == None:
+            cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
+            ball = await cog.countryball_cls.get_random(interaction.client)
+            countryball = [x for x in balls.values() if x.country == f"{ball.name}"][0]
         if countryball.enabled == False:
             return await interaction.response.send_message(f"You do not have permission to give this {settings.collectible_name}", ephemeral=True)
         paintarray = ["Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
         if special:
-            if str(special) not in paintarray:
-                return await interaction.response.send_message("You do not have permission to give this special",ephemeral=True)
+            if not any(role.id in settings.root_role_ids for role in interaction.user.roles):
+                if str(special) not in paintarray:
+                    return await interaction.response.send_message("You do not have permission to give this special",ephemeral=True)
         await adminballs().get_command('give').callback(
             adminballs(),
             interaction,
