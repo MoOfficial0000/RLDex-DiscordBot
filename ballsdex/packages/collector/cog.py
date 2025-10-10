@@ -71,13 +71,26 @@ else:
     dT1Rarity = 1
     dCommonReq = 10
     dCommonRarity = 233
-dRoundingOption = 1 
+dRoundingOption = 1
+
+if settings.bot_name == "dragonballdex":
+    sT1Req = 25
+    sT1Rarity = 1
+    sCommonReq = 100
+    sCommonRarity = 62
+else:
+    sT1Req = 25
+    sT1Rarity = 1
+    sCommonReq = 200
+    sCommonRarity = 233
+sRoundingOption = 5
 
 uncountablespecials = ("Champion Edition Goku","Champion Edition Vegeta","Ruby","Boss","Staff","Emerald","Shiny","Mythical","Relicborne","Collector","Diamond","Xeno Goku Black","Ultra Gogito","Goku Day","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna")
 log = logging.getLogger("ballsdex.packages.collector.cog")
 
 gradient = (CommonReq-T1Req)/(CommonRarity-T1Rarity)
 dgradient = (dCommonReq-dT1Req)/(dCommonRarity-dT1Rarity)
+sgradient = (sCommonReq-sT1Req)/(sCommonRarity-sT1Rarity)
 
 class Collector(commands.GroupCog):
     """
@@ -191,6 +204,7 @@ class Collector(commands.GroupCog):
         diamond_number = int(int((dgradient*(countryball.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
         relicborne_number = math.ceil(diamond_number/1.5)
         mythical_number = int(diamond_number/2)
+        specials_number = int(int((sgradient*(countryball.rarity-sT1Rarity) + sT1Req)/sRoundingOption)*sRoundingOption)
         missinglistr = []
         if settings.bot_name == "dragonballdex":
             specialsneededlist = ["1×`Emerald`","3×`Boss`",f"{mythical_number}×`Extra Mythical` [{1+mythical_number} total]",f"{relicborne_number}×`Extra Relicborne` [{1+relicborne_number} total]"]
@@ -203,6 +217,13 @@ class Collector(commands.GroupCog):
         basecount = await BallInstance.filter(**basefilters).count()
         if basecount < collector_total:
             missinglistr.append(f"`{collector_extra} Extra`")
+            passedr = False
+        specialsfilters = {}
+        specialsfilters["ball"] = countryball
+        specialsfilters["player__discord_id"] = user.id
+        specialscount = await BallInstance.filter(**specialsfilters).exclude(special=None).count()
+        if specialscount < specials_number:
+            missinglistr.append(f"`{specials_number} total specials`")
             passedr = False
         emeraldspecial = [x for x in specials.values() if x.name == "Emerald"][0]
         emeraldfilters = {}
@@ -246,8 +267,8 @@ class Collector(commands.GroupCog):
         else:
             lines = (
                 f"You need **{collector_extra} extra {countryball.country}** "
-                f"(**{collector_total} total**; you currently have `{basecount}`) "
-                "and the required specials below to create a **Ruby character**.\n\n"
+                f"(**{collector_total} total**; you currently have `{basecount}`).\n"
+                f"You also need **{specials_number} total specials** (you currently have `{specialscount}`) __including Required Specials below__ to create a **Ruby character**.\n\n"
                 "Required Specials:\n"
             )
             missinglines = "You are currently missing:\n"
@@ -472,14 +493,15 @@ class Collector(commands.GroupCog):
                 diamond_number = int(int((dgradient*(collectible.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
                 relicborne_number = math.ceil(diamond_number/1.5)
                 mythical_number = int(diamond_number/2)
+                specials_number = int(int((sgradient*(collectible.rarity-sT1Rarity) + sT1Req)/sRoundingOption)*sRoundingOption)
             else:
                 rarity1 = int(int((gradient*(collectible.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
             
             if ruby:
                 if settings.bot_name == "dragonballdex":
-                    entry = (name, f"{emote}{shinytext} required: **{collector_extra}** (**{collector_total} total**)\n+`1❇️`+`3⚔️`+`{mythical_number}🌌({mythical_number+1})`+`{relicborne_number}🌠({relicborne_number+1})`")
+                    entry = (name, f"{emote}{shinytext} required: **{collector_extra}** (**{collector_total} total**)\nSpecials required: **{specials_number}** including: \n`1❇️`+`3⚔️`+`{mythical_number}🌌({mythical_number+1})`+`{relicborne_number}🌠({relicborne_number+1})`")
                 else:
-                    entry = (name, f"{emote}{shinytext} required: **{collector_extra}** (**{collector_total} total**)\n+`1❇️`+`3⚔️`+`{mythical_number}🌌({mythical_number+1})`")
+                    entry = (name, f"{emote}{shinytext} required: **{collector_extra}** (**{collector_total} total**)\nSpecials required: **{specials_number}** including: \n`1❇️`+`3⚔️`+`{mythical_number}🌌({mythical_number+1})`")
             else:
                 entry = (name, f"{emote}{shinytext} required: {rarity1}")
             entries.append(entry)
@@ -493,9 +515,9 @@ class Collector(commands.GroupCog):
         )
         if ruby:
             if settings.bot_name == "dragonballdex":
-                source.embed.description += "\n-# Specials Format:\n-# `1❇️`+`3⚔️`+`Extra🌌(total)`+`Extra🌠(total)`"
+                source.embed.description += "\n-# Key:\n-# `1❇️`+`3⚔️`+`Extra🌌(total)`+`Extra🌠(total)`"
             else:
-                source.embed.description += "\n-# Specials Format:\n-# `1❇️`+`3⚔️`+`Extra🌌(total)`"
+                source.embed.description += "\n-# Key:\n-# `1❇️`+`3⚔️`+`Extra🌌(total)`"
         source.embed.colour = discord.Colour.from_rgb(190,100,190)
         source.embed.set_author(
             name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
