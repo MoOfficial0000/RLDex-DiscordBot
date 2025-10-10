@@ -74,7 +74,7 @@ else:
 dRoundingOption = 1
 
 if settings.bot_name == "dragonballdex":
-    sT1Req = 25
+    sT1Req = 27.5 # this is so from t1 it's 25 and from t3.5 it becomes 30
     sT1Rarity = 1
     sCommonReq = 100
     sCommonRarity = 62
