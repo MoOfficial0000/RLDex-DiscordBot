@@ -429,6 +429,7 @@ class Collector(commands.GroupCog):
             )
             
     @app_commands.command()
+    @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
     @app_commands.choices(
         collector_type=[
             app_commands.Choice(name="Collector", value="Collector"),
