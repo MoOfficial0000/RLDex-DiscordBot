@@ -22,6 +22,7 @@ from ballsdex.core.models import (
     balls,
 )
 from ballsdex.core.utils.utils import inventory_privacy, is_staff
+from ballsdex.core.utils.paginator import FieldPageSource, Pages
 from ballsdex.core.models import balls as countryballs
 from ballsdex.settings import settings
 from ballsdex.packages.countryballs.cog import CountryBallsSpawner
@@ -51,13 +52,16 @@ porunga = ["Namekian Dragon Ball (1 Star)","Namekian Dragon Ball (2 Star)","Name
 supershenron = ["Super Dragon Ball (1 Star)","Super Dragon Ball (2 Star)","Super Dragon Ball (3 Star)","Super Dragon Ball (4 Star)","Super Dragon Ball (5 Star)","Super Dragon Ball (6 Star)","Super Dragon Ball (7 Star)","Super Shenron"]
 porungadaima = ["Demon Realm Dragon Ball (1 Star)","Demon Realm Dragon Ball (2 Star)","Demon Realm Dragon Ball (3 Star)","Porunga (Daima)"]
 toronbo = ["Cerealian Dragon Ball (1 Star)","Cerealian Dragon Ball (2 Star)","Toronbo"]
-dragons = ["Shenron","Super Shenron","Porunga","Porunga (Daima)","Toronbo"]
-ballsemojis = ["<:EarthDragonBalls:1355736004530536559>","<:SuperDragonBalls:1355736009018445854>","<:NamekianDragonBalls:1355736002135588974>","<:DemonRealmDragonBalls:1355736006782881993>","<:CerealianDragonBalls:1355735779875229867>"]
+ultimateshenron = ["Black Star Dragon Ball (1 Star)","Black Star Dragon Ball (2 Star)","Black Star Dragon Ball (3 Star)","Black Star Dragon Ball (4 Star)","Black Star Dragon Ball (5 Star)","Black Star Dragon Ball (6 Star)","Black Star Dragon Ball (7 Star)","Ultimate Shenron"]
+dragons = ["Shenron","Super Shenron","Porunga","Porunga (Daima)","Toronbo","Ultimate Shenron"]
+ballsemojis = ["<:EarthDragonBalls:1355736004530536559>","<:SuperDragonBalls:1355736009018445854>","<:NamekianDragonBalls:1355736002135588974>","<:DemonRealmDragonBalls:1355736006782881993>","<:CerealianDragonBalls:1355735779875229867>","<:BlackStarDragonBalls:1439034304180260997>"]
 shenron1 = ["<:DB1:1355509169565859929>","<:DB2:1355509172233441473>","<:DB3:1355509175089893396>","<:DB4:1355509186871427112>","<:DB5:1355509178176897174>","<:DB6:1355509181150662766>","<:DB7:1355509183964774420>","<:Shenron:1358300433441099948>"]
 porunga1 = ["<:NamekDB1:1355509351615565934>","<:NamekDB2:1355509354811625634>","<:NamekDB3:1355509357776863302>","<:NamekDB4:1355509369399152782>","<:NamekDB5:1355509360041787412>","<:NamekDB6:1355509362927341678>","<:NamekDB7:1355509365553106975>","<:Porunga:1325953103031439410>"]
 supershenron1 = ["<:SuperDB1:1355509197126762498>","<:SuperDB2:1355509198875791420>","<:SuperDB3:1355509200939126914>","<:SuperDB4:1355509203380207869>","<:SuperDB5:1355509205242744903>","<:SuperDB6:1355509207331504168>","<:SuperDB7:1355509209411878933>","<:SuperShenron:1311798650246271016>"]
 porungadaima1 = ["<:DemonRealmDB1:1355509715248877638>","<:DemonRealmDB2:1355509710744191134>","<:DemonRealmDB3:1355509713323819059>","<:PorungaDaima:1340039668137463941>"]
 toronbo1 = ["<:CerealianDB1:1355508560284614737>","<:CerealianDB2:1355508557537218791>","<:Toronbo:1322958774088106077>"]
+ultimateshenron1 = ["<:OneStarBlackStarDragonball:1439035486357422194>","<:TwoStarBlackStarDragonball:1439035463137755357>","<:ThreeStarBlackStarDragonball:1439035445328613386>","<:FourStarBlackStarDragonball:1439035525905387660>","<:FiveStarBlackStarDragonball:1439035398159335424>","<:SixStarBlackStarDragonball:1439035506724962304>","<:SevenStarBlackStarDragonball:1439035426747842660>","<:UltimateShenron:1437982333507735743>"]
+
 relics = [321,322,323,324]
 
 @dataclass
@@ -100,6 +104,9 @@ def gen_deck(balls,ballinstances,maxallowed) -> str:
     elif maxallowed[1]=="CDB":
         dbdnames = toronbo
         dbdemojis = toronbo1
+    elif maxallowed[1]=="UDB":
+        dbdnames = ultimateshenron
+        dbdemojis = ultimateshenron1
     if balls == "finalballs":
         balls = ["1","1","1","1","1","1","1"]
         dbdnames = balls
@@ -160,6 +167,10 @@ def update_embed(
         emoji1 = ballsemojis[4]
         emoji2 = toronbo1[-1]
         rewardtext = "- **Wild Character Drop! ( ✨3% | 🌌0.6% )**\n- **Wild Character Drop! ( ✨3% | 🌌0.6% )**\n- -# **2× Relic Drops!**"
+    elif maxallowed[1]=="UDB":
+        emoji1 = ballsemojis[5]
+        emoji2 = ultimateshenron1[-1]
+        rewardtext = "- **Wild Character Drop! ( ✨1% | 🌌0.2% )**\n- **Wild Character Drop! ( ✨1% | 🌌0.2% )**\n- **Wild Character Drop! ( ✨1% | 🌌0.2% )**\n- **Wild Character Drop! ( ✨1% | 🌌0.2% )**\n- **Wild Character Drop! ( ✨1% | 🌌0.2% )**\n- **Wild Character Drop! ( ✨1% | 🌌0.2% )**\n- **Wild Character Drop! ( ✨1% | 🌌0.2% )**\n- -# **2× Relic Drops!**"
     embed = discord.Embed(
         title=f"{settings.collectible_name.title()} Wishing {emoji2} {emoji1}",
         description=(
@@ -245,6 +256,10 @@ class Wish(commands.GroupCog):
     )
     craft = app_commands.Group(
         name='craft', description='Relic crafting commands for wish'
+    )
+
+    bulk = app_commands.Group(
+        name='bulk', description='Bulk commands for wish'
     )
     
     async def owned(self, player, character):
@@ -516,17 +531,10 @@ class Wish(commands.GroupCog):
 
             if await inventory_privacy(self.bot, interaction, player, user_obj) is False:
                 return
-        embed = discord.Embed(
-            title=f"Wish Completion",
-            description=f"Dragon Ball completion of {user_obj.mention}",
-        )
-        embed.color=discord.Colour.from_rgb(0,0,255)
-        embed.set_author(name=user_obj.display_name, icon_url=user_obj.display_avatar.url)
-        embed.set_footer(text="Use '/dbz completion' for the full dex completion.")
 
         fullresult = []
-        fullset = [supershenron,shenron,porunga,porungadaima,toronbo]
-        fullemojis = [supershenron1,shenron1,porunga1,porungadaima1,toronbo1]
+        fullset = [supershenron,shenron,porunga,porungadaima,toronbo,ultimateshenron]
+        fullemojis = [supershenron1,shenron1,porunga1,porungadaima1,toronbo1,ultimateshenron1]
         emojisetcount = 0
         for dbdnames in fullset:
             result = ""
@@ -541,46 +549,35 @@ class Wish(commands.GroupCog):
                     result += f"- :x:{fullemojis[emojisetcount][dbdnames.index(f'{str(dbdnames[n-1])}')]}{cutter}\n"
             emojisetcount += 1
             fullresult.append(result)
-            
-        embed.add_field(
-            name=f"Super Dragon Balls:",
-            value=fullresult[0],
-            inline=True,
-        )
-        embed.add_field(
-            name=f"Earth Dragon Balls:",
-            value=fullresult[1],
-            inline=True,
-        )
-        embed.add_field(
-            name=f"Namekian Dragon Balls:",
-            value=fullresult[2],
-            inline=True,
-        )
-        embed.add_field(
-            name=f"Demon Realm Dragon Balls:",
-            value=fullresult[3],
-            inline=True,
-        )
-        embed.add_field(
-            name=f"Cerealian Dragon Balls:",
-            value=fullresult[4],
-            inline=True,
-        )
+        entries = []
+        entry0 = ("Super Dragon Balls:", fullresult[0])
+        entry1 = ("Earth Dragon Balls:", fullresult[1])
+        entry2 = ("Namekian Dragon Balls:", fullresult[2])
+        entry3 = ("Demon Realm Dragon Balls:", fullresult[3])
+        entry4 = ("Cerealian Dragon Balls:", fullresult[4])
+        entry5 = ("Black Star Dragon Balls:", fullresult[5])
+        entries.append(entry0)
+        entries.append(entry1)
+        entries.append(entry2)
+        entries.append(entry3)
+        entries.append(entry4)
+        entries.append(entry5)
+        # This is the number of entries which are displayed at one page,
+        # you can change this, but keep in mind: discord has an embed size limit.
+        per_page = 2
+
+        source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
+        usermention = user_obj.mention
+        source.embed.description=f"**Dragon Ball completion of {usermention}**\n-# Use '/dbz completion' for the full dex completion."
+        source.embed.colour = discord.Colour.from_rgb(0,0,255)
+        source.embed.set_author(name=user_obj.display_name, icon_url=user_obj.display_avatar.url)
         
-        await interaction.followup.send(
-            embed=embed,
-        )
+        pages = Pages(source=source, interaction=interaction, compact=True)
+        await pages.start()
     
     async def start_battle(self, interaction: discord.Interaction):
         await interaction.response.defer()
         guild_battle = fetch_battle(interaction.user)
-
-        if guild_battle is None:
-            await interaction.followup.send(
-                "This wish doesn't belong to you.", ephemeral=True
-            )
-            return
         
         # Set the player's readiness status
 
@@ -644,6 +641,10 @@ class Wish(commands.GroupCog):
         elif maxallowed[1]=="CDB":
             shiny_percentage = 3
             mythical_percentage = 0.619
+            noofrelics = 2
+        elif maxallowed[1]=="UDB":
+            shiny_percentage = 1
+            mythical_percentage = 0.204
             noofrelics = 2
         if textvalue1 =="":
             cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
@@ -738,12 +739,6 @@ class Wish(commands.GroupCog):
     async def cancel_battle(self, interaction: discord.Interaction):
         guild_battle = fetch_battle(interaction.user)
 
-        if guild_battle is None:
-            await interaction.response.send_message(
-                "That is not your wish!", ephemeral=True
-            )
-            return
-
         embed = discord.Embed(
             title=f"{settings.collectible_name.title()} Wishing",
             description="The wish has been cancelled.",
@@ -765,6 +760,11 @@ class Wish(commands.GroupCog):
         except discord.errors.InteractionResponded:
             pass
 
+        for lockedball in guild_battle.battle.p1_balls:
+            await lockedball.unlock()
+        for lockedball in guild_battle.battle.p2_balls:
+            await lockedball.unlock()
+
         await interaction.message.edit(embed=embed, view=create_disabled_buttons())
         battles.pop(battles.index(guild_battle))
         for bround in self.battlerounds:
@@ -780,6 +780,7 @@ class Wish(commands.GroupCog):
             app_commands.Choice(name="Porunga", value="NDB"),
             app_commands.Choice(name="Porunga (Daima)", value="DDB"),
             app_commands.Choice(name="Toronbo", value="CDB"),
+            app_commands.Choice(name="Ultimate Shenron", value="UDB"),
         ]
     )
     async def start(self, interaction: discord.Interaction, dragon: str):
@@ -801,7 +802,7 @@ class Wish(commands.GroupCog):
             return
         imaginaryopponent = random.randint(0,9999999)
         battles.append(GuildBattle(interaction, interaction.user, imaginaryopponent))
-        if dragon == "SDB" or dragon == "NDB" or dragon == "EDB":
+        if dragon == "SDB" or dragon == "NDB" or dragon == "EDB" or dragon == "UDB":
             max_amount = [7,dragon]
         elif dragon == "DDB":
             max_amount = [3,dragon]
@@ -820,8 +821,24 @@ class Wish(commands.GroupCog):
 
         # Set callbacks
 
-        start_button.callback = self.start_battle
-        cancel_button.callback = self.cancel_battle
+        originaluser = interaction.user
+        async def start_protected_callback(button_interaction: discord.Interaction):
+            if button_interaction.user != originaluser:
+                await button_interaction.response.send_message(
+                    "This button isn't for you!", ephemeral=True
+                )
+                return
+            await self.start_battle(button_interaction)
+        start_button.callback = start_protected_callback
+            
+        async def cancel_protected_callback(button_interaction: discord.Interaction):
+            if button_interaction.user != originaluser:
+                await button_interaction.response.send_message(
+                    "This button isn't for you!", ephemeral=True
+                )
+                return
+            await self.cancel_battle(button_interaction)
+        cancel_button.callback = cancel_protected_callback
 
         view = discord.ui.View(timeout=None)
 
@@ -851,29 +868,33 @@ class Wish(commands.GroupCog):
             if interaction.user.id in bround:
                 maxallowed = bround[2]
                 break
-
+        notneededmsg = ("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!")
         if maxallowed[1]=="EDB":
             if f"{await countryballs[0].ball}" not in shenron:
-                await interaction.response.send_message("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!", ephemeral=True)
+                await interaction.response.send_message(notneededmsg, ephemeral=True)
                 return
         elif maxallowed[1]=="SDB":
             if f"{await countryballs[0].ball}" not in supershenron:
-                await interaction.response.send_message("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!", ephemeral=True)
+                await interaction.response.send_message(notneededmsg, ephemeral=True)
                 return
         elif maxallowed[1]=="NDB":
             if f"{await countryballs[0].ball}" not in porunga:
-                await interaction.response.send_message("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!", ephemeral=True)
+                await interaction.response.send_message(notneededmsg, ephemeral=True)
                 return
         elif maxallowed[1]=="DDB":
             if f"{await countryballs[0].ball}" not in porungadaima:
-                await interaction.response.send_message("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!", ephemeral=True)
+                await interaction.response.send_message(notneededmsg, ephemeral=True)
                 return
         elif maxallowed[1]=="CDB":
             if f"{await countryballs[0].ball}" not in toronbo:
-                await interaction.response.send_message("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!", ephemeral=True)
+                await interaction.response.send_message(notneededmsg, ephemeral=True)
+                return
+        elif maxallowed[1]=="UDB":
+            if f"{await countryballs[0].ball}" not in ultimateshenron:
+                await interaction.response.send_message(notneededmsg, ephemeral=True)
                 return
         else:
-            await interaction.response.send_message("Oops, you have caught an error! please dm moofficial to fix this")
+            await interaction.response.send_message("Oops, you have caught a rare error! please dm moofficial0 to fix this")
         # Determine if the user is the author or opponent and get the appropriate ball list
 
         user_balls = (
@@ -883,16 +904,16 @@ class Wish(commands.GroupCog):
         )
 
 
-        if len(user_balls) != 0 and f"{await countryballs[0].ball}" in dragons:
-            await interaction.response.send_message(
-                f"You have already added the Activation Dragon!", ephemeral=True
-            )
-            return
-        elif len(user_balls) == maxallowed[0]:
-            await interaction.response.send_message(
-                f"You cannot add anymore dragon balls as you have already reached the max amount limit!", ephemeral=True
-            )
-            return
+        #if len(user_balls) != 0 and f"{await countryballs[0].ball}" in dragons:
+            #await interaction.response.send_message(
+                #f"You have already added the Activation Dragon!", ephemeral=True
+            #)
+            #return
+        #elif len(user_balls) == maxallowed[0]:
+            #await interaction.response.send_message(
+                #f"You cannot add anymore dragon balls as you have already reached the max amount limit!", ephemeral=True
+            #)
+            #return
         # Create
         for country in countryballs:
             ball = country
@@ -1004,13 +1025,20 @@ class Wish(commands.GroupCog):
                 f"You cannot use this.", ephemeral=True
             )
             return
+        if await countryball.is_locked():
+            await interaction.response.send_message(
+                f"This {settings.collectible_name} is currently locked for a trade. "
+                "Please try again later.",
+                ephemeral=True,
+            )
+            return
         async for dupe in self.add_balls(interaction, [countryball]):
             if dupe:
                 await interaction.response.send_message(
-                    f"You have already added this dragon ball!", ephemeral=True
+                    f"You have already added this!", ephemeral=True
                 )
                 return
-
+            await countryball.lock_for_trade()
 
         try:
             await interaction.response.send_message(
@@ -1019,6 +1047,82 @@ class Wish(commands.GroupCog):
             )
         except:
             return
+
+    @bulk.command(name="add")
+    async def bulk_add(
+        self, interaction: discord.Interaction| None = None,
+    ):
+        """
+        Bulk add what's needed to a wish.
+        """
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        numberadded = 0
+        dragonadded = False
+        guild_battle = fetch_battle(interaction.user)
+
+        if guild_battle is None:
+            await interaction.response.send_message(
+                "You aren't wishing!", ephemeral=True
+            )
+            return
+        
+        if interaction.guild_id != guild_battle.interaction.guild_id:
+            await interaction.response.send_message(
+                "You must be in the same server as your wish to use commands.", ephemeral=True
+            )
+            return
+
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                maxallowed = bround[2]
+                break
+
+        if maxallowed[1]=="EDB":
+            charnames = shenron
+        elif maxallowed[1]=="SDB":
+            charnames = supershenron
+        elif maxallowed[1]=="NDB":
+            charnames = porunga
+        elif maxallowed[1]=="DDB":
+            charnames = porungadaima
+        elif maxallowed[1]=="CDB":
+            charnames = toronbo
+        elif maxallowed[1]=="UDB":
+            charnames = ultimateshenron
+
+        for chars in charnames:
+            if chars == charnames[-1]:
+                dragonchar = True
+            else:
+                dragonchar = False
+            chfilters = {}
+            chfilters["ball"] = [x for x in balls.values() if x.country == (chars)][0]
+            chfilters["player__discord_id"] = interaction.user.id
+            charcount = await BallInstance.filter(**chfilters).count()
+            charlist = await BallInstance.filter(**chfilters).prefetch_related("ball")
+            if charcount != 0:
+                for subchars in charlist:
+                    if await subchars.is_locked() == False:
+                        async for dupe in self.add_balls(interaction, [subchars]):
+                            if dupe:
+                                break
+                            await subchars.lock_for_trade()
+                            if dragonchar:
+                                dragonadded = True
+                            else:
+                                numberadded+=1
+                        break
+        if dragonadded == True:
+            if numberadded > 0:
+                bulktext = f"Bulk added {numberadded} Dragon balls + Activation dragon."
+            else:
+                bulktext = f"Added Activation dragon."
+        else:
+            if numberadded > 0:
+                bulktext = f"Bulk added {numberadded} Dragon balls"
+            else:
+                bulktext = f"There is nothing else to add!"
+        await interaction.followup.send(bulktext, ephemeral=True)
 
     @app_commands.command()
     async def remove(
@@ -1038,7 +1142,7 @@ class Wish(commands.GroupCog):
                     f"You cannot remove what is not in your wish!", ephemeral=True
                 )
                 return
-
+            await countryball.unlock()
 
         try:
             await interaction.response.send_message(
@@ -1073,6 +1177,11 @@ class Wish(commands.GroupCog):
         except discord.errors.InteractionResponded:
             pass
 
+        for lockedball in guild_battle.battle.p1_balls:
+            await lockedball.unlock()
+        for lockedball in guild_battle.battle.p2_balls:
+            await lockedball.unlock()
+
         battles.pop(battles.index(guild_battle))
         for bround in self.battlerounds:
             if interaction.user.id in bround:
@@ -1098,6 +1207,12 @@ class Wish(commands.GroupCog):
             await interaction.response.defer(ephemeral=True, thinking=True)
         except discord.errors.InteractionResponded:
             pass
+
+        for eachbattle in battles:
+            for lockedball in eachbattle.battle.p1_balls:
+                await lockedball.unlock()
+            for lockedball in eachbattle.battle.p2_balls:
+                await lockedball.unlock()
 
         battles.clear()
         self.battlerounds = []
