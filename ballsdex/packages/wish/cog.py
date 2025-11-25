@@ -903,17 +903,6 @@ class Wish(commands.GroupCog):
             else guild_battle.battle.p2_balls
         )
 
-
-        #if len(user_balls) != 0 and f"{await countryballs[0].ball}" in dragons:
-            #await interaction.response.send_message(
-                #f"You have already added the Activation Dragon!", ephemeral=True
-            #)
-            #return
-        #elif len(user_balls) == maxallowed[0]:
-            #await interaction.response.send_message(
-                #f"You cannot add anymore dragon balls as you have already reached the max amount limit!", ephemeral=True
-            #)
-            #return
         # Create
         for country in countryballs:
             ball = country
