@@ -39,8 +39,8 @@ if TYPE_CHECKING:
 log = logging.getLogger("ballsdex.packages.battle")
 
 battles = []
-highevent = ("Testers","Birthday Ball","Eid al-Adha","Realm","Event Farmer")
-lowevent = ("Lunar New Year 2025","Christmas 2024","Summer","Easter 2025")
+highevent = ("Testers","Birthday Ball","Eid al-Adha 1445","Realm","Event Farmer","American","Dragon Ball","Aerial Tramway","Birthday 2025","Champion Edition Goku","Champion Edition Vegeta","International Cat Day 2025 (Larry)")
+lowevent = ("Lunar New Year 2025","Winter 2024","Summer","Spring Basket 2025","Dark Mist 2024","Goku Day 2025","Eid al-Adha 1446","Autumn 2025","International Cat Day 2025 (Rigby)")
 
 @dataclass
 class GuildBattle:
@@ -377,25 +377,8 @@ class Battle(commands.GroupCog):
 
         # Set callbacks
 
-        originaluser = interaction.user
-        originaluser2 = opponent
-        async def start_protected_callback(button_interaction: discord.Interaction):
-            if button_interaction.user != originaluser and button_interaction.user != originaluser2:
-                await button_interaction.response.send_message(
-                    "This button isn't for you!", ephemeral=True
-                )
-                return
-            await self.start_battle(button_interaction)
-        start_button.callback = start_protected_callback
-            
-        async def cancel_protected_callback(button_interaction: discord.Interaction):
-            if button_interaction.user != originaluser and button_interaction.user != originaluser2:
-                await button_interaction.response.send_message(
-                    "This button isn't for you!", ephemeral=True
-                )
-                return
-            await self.cancel_battle(button_interaction)
-        cancel_button.callback = cancel_protected_callback
+        start_button.callback = self.start_battle
+        cancel_button.callback = self.cancel_battle
 
         view = discord.ui.View(timeout=None)
 
@@ -458,12 +441,14 @@ class Battle(commands.GroupCog):
                 buff = 80000 if settings.bot_name == "dragonballdex" else 5000
             elif battlespecial == "Mythical":
                 buff = 160000 if settings.bot_name == "dragonballdex" else 12000
-            elif battlespecial == "Boss" or battlespecial == "Collector":
+            elif battlespecial == "Collector" or battlespecial == "Relicborne":
                 buff = 100000 if settings.bot_name == "dragonballdex" else 6000
-            elif battlespecial == "Diamond":
+            elif battlespecial == "Boss" or battlespecial == "Diamond":
                 buff = 120000 if settings.bot_name == "dragonballdex" else 8000
             elif battlespecial == "Emerald":
                 buff = 200000 if settings.bot_name == "dragonballdex" else 14000
+            elif battlespecial == "Ruby":
+                buff = 360000 if settings.bot_name == "dragonballdex" else 18000
             elif battlespecial in highevent:
                 buff = 50000 if settings.bot_name == "dragonballdex" else 3000
             elif battlespecial in lowevent:
@@ -559,12 +544,14 @@ class Battle(commands.GroupCog):
                 buff = 80000 if settings.bot_name == "dragonballdex" else 5000
             elif battlespecial == "Mythical":
                 buff = 160000 if settings.bot_name == "dragonballdex" else 12000
-            elif battlespecial == "Boss" or battlespecial == "Collector":
+            elif battlespecial == "Collector" or battlespecial == "Relicborne":
                 buff = 100000 if settings.bot_name == "dragonballdex" else 6000
-            elif battlespecial == "Diamond":
+            elif battlespecial == "Boss" or battlespecial == "Diamond":
                 buff = 120000 if settings.bot_name == "dragonballdex" else 8000
             elif battlespecial == "Emerald":
                 buff = 200000 if settings.bot_name == "dragonballdex" else 14000
+            elif battlespecial == "Ruby":
+                buff = 360000 if settings.bot_name == "dragonballdex" else 18000
             elif battlespecial in highevent:
                 buff = 50000 if settings.bot_name == "dragonballdex" else 3000
             elif battlespecial in lowevent:
@@ -596,6 +583,7 @@ class Battle(commands.GroupCog):
                 (countryballattack + buff),
                 self.bot.get_emoji(countryball.countryball.emoji_id),
             )
+
 
             # Check if ball has already been added
 
