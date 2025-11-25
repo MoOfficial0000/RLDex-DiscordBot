@@ -377,8 +377,25 @@ class Battle(commands.GroupCog):
 
         # Set callbacks
 
-        start_button.callback = self.start_battle
-        cancel_button.callback = self.cancel_battle
+        originaluser = interaction.user
+        originaluser2 = opponent
+        async def start_protected_callback(button_interaction: discord.Interaction):
+            if button_interaction.user != originaluser and button_interaction.user != originaluser2:
+                await button_interaction.response.send_message(
+                    "This button isn't for you!", ephemeral=True
+                )
+                return
+            await self.start_battle(button_interaction)
+        start_button.callback = start_protected_callback
+            
+        async def cancel_protected_callback(button_interaction: discord.Interaction):
+            if button_interaction.user != originaluser and button_interaction.user != originaluser2:
+                await button_interaction.response.send_message(
+                    "This button isn't for you!", ephemeral=True
+                )
+                return
+            await self.cancel_battle(button_interaction)
+        cancel_button.callback = cancel_protected_callback
 
         view = discord.ui.View(timeout=None)
 
