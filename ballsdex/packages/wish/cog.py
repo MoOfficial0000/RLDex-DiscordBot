@@ -578,7 +578,12 @@ class Wish(commands.GroupCog):
     async def start_battle(self, interaction: discord.Interaction):
         await interaction.response.defer()
         guild_battle = fetch_battle(interaction.user)
-        
+
+        if guild_battle is None:
+            await interaction.followup.send(
+                "This wish doesn't belong to you.", ephemeral=True
+            )
+            return
         # Set the player's readiness status
 
         if interaction.user == guild_battle.author:
@@ -738,6 +743,12 @@ class Wish(commands.GroupCog):
 
     async def cancel_battle(self, interaction: discord.Interaction):
         guild_battle = fetch_battle(interaction.user)
+
+        if guild_battle is None:
+            await interaction.followup.send(
+                "This wish doesn't belong to you.", ephemeral=True
+            )
+            return
 
         embed = discord.Embed(
             title=f"{settings.collectible_name.title()} Wishing",
@@ -1050,13 +1061,13 @@ class Wish(commands.GroupCog):
         guild_battle = fetch_battle(interaction.user)
 
         if guild_battle is None:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "You aren't wishing!", ephemeral=True
             )
             return
         
         if interaction.guild_id != guild_battle.interaction.guild_id:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "You must be in the same server as your wish to use commands.", ephemeral=True
             )
             return
