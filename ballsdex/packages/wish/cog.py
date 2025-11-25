@@ -1,726 +1,1106 @@
 import logging
+import time
+import random
+import sys
+from typing import TYPE_CHECKING, Dict, cast
+from dataclasses import dataclass, field
 
 import discord
-import math
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import Button, View, button
-from tortoise.exceptions import DoesNotExist
+from discord import Embed
+from discord.ui import Button, View
 
-from typing import TYPE_CHECKING, Optional, cast
+import asyncio
+import io
 
-from ballsdex.core.models import BallInstance
-from ballsdex.core.models import Player
-from ballsdex.core.models import specials
-from ballsdex.core.models import balls
-from ballsdex.core.utils.transformers import BallEnabledTransform
-from ballsdex.core.utils.transformers import BallTransform
-from ballsdex.core.utils.transformers import SpecialEnabledTransform
-from ballsdex.core.utils.transformers import SpecialTransform
-from ballsdex.core.utils.buttons import ConfirmChoiceView
-from ballsdex.core.utils.paginator import FieldPageSource, Pages
-from ballsdex.core.utils.sorting import SortingChoices, sort_balls
+from ballsdex.core.models import (
+    Ball,
+    BallInstance,
+    Player,
+    specials,
+    balls,
+)
+from ballsdex.core.utils.utils import inventory_privacy, is_staff
+from ballsdex.core.models import balls as countryballs
 from ballsdex.settings import settings
-from ballsdex.core.utils.logging import log_action
+from ballsdex.packages.countryballs.cog import CountryBallsSpawner
+
+from ballsdex.core.utils.transformers import (
+    BallInstanceTransform,
+    BallTransform,
+    BallEnabledTransform,
+    SpecialEnabledTransform,
+)
+
+#from ballsdex.packages.wish.xe_wish_lib import (
+   # BattleBall,
+   # BattleInstance,
+   # gen_battle,
+#)
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
+    
 
-# You must have a special called "Collector" and "Diamond" for this to work.
-# You must be have version 2.22.0 Ballsdex or diamond will not work.
+log = logging.getLogger("ballsdex.packages.battle")
+#THIS CODE IS A HEAVILY RESKINNED BATTLE CODE, PREPARE TO BE CONFUSED. THIS IS NOT INDENDED TO BE USED FOR OTHER DEXES EXCEPT DRAGON BALL DEX
+battles = []
+shenron = ["Earth Dragon Ball (1 Star)","Earth Dragon Ball (2 Star)","Earth Dragon Ball (3 Star)","Earth Dragon Ball (4 Star)","Earth Dragon Ball (5 Star)","Earth Dragon Ball (6 Star)","Earth Dragon Ball (7 Star)","Shenron"]
+porunga = ["Namekian Dragon Ball (1 Star)","Namekian Dragon Ball (2 Star)","Namekian Dragon Ball (3 Star)","Namekian Dragon Ball (4 Star)","Namekian Dragon Ball (5 Star)","Namekian Dragon Ball (6 Star)","Namekian Dragon Ball (7 Star)","Porunga"]
+supershenron = ["Super Dragon Ball (1 Star)","Super Dragon Ball (2 Star)","Super Dragon Ball (3 Star)","Super Dragon Ball (4 Star)","Super Dragon Ball (5 Star)","Super Dragon Ball (6 Star)","Super Dragon Ball (7 Star)","Super Shenron"]
+porungadaima = ["Demon Realm Dragon Ball (1 Star)","Demon Realm Dragon Ball (2 Star)","Demon Realm Dragon Ball (3 Star)","Porunga (Daima)"]
+toronbo = ["Cerealian Dragon Ball (1 Star)","Cerealian Dragon Ball (2 Star)","Toronbo"]
+dragons = ["Shenron","Super Shenron","Porunga","Porunga (Daima)","Toronbo"]
+ballsemojis = ["<:EarthDragonBalls:1355736004530536559>","<:SuperDragonBalls:1355736009018445854>","<:NamekianDragonBalls:1355736002135588974>","<:DemonRealmDragonBalls:1355736006782881993>","<:CerealianDragonBalls:1355735779875229867>"]
+shenron1 = ["<:DB1:1355509169565859929>","<:DB2:1355509172233441473>","<:DB3:1355509175089893396>","<:DB4:1355509186871427112>","<:DB5:1355509178176897174>","<:DB6:1355509181150662766>","<:DB7:1355509183964774420>","<:Shenron:1358300433441099948>"]
+porunga1 = ["<:NamekDB1:1355509351615565934>","<:NamekDB2:1355509354811625634>","<:NamekDB3:1355509357776863302>","<:NamekDB4:1355509369399152782>","<:NamekDB5:1355509360041787412>","<:NamekDB6:1355509362927341678>","<:NamekDB7:1355509365553106975>","<:Porunga:1325953103031439410>"]
+supershenron1 = ["<:SuperDB1:1355509197126762498>","<:SuperDB2:1355509198875791420>","<:SuperDB3:1355509200939126914>","<:SuperDB4:1355509203380207869>","<:SuperDB5:1355509205242744903>","<:SuperDB6:1355509207331504168>","<:SuperDB7:1355509209411878933>","<:SuperShenron:1311798650246271016>"]
+porungadaima1 = ["<:DemonRealmDB1:1355509715248877638>","<:DemonRealmDB2:1355509710744191134>","<:DemonRealmDB3:1355509713323819059>","<:PorungaDaima:1340039668137463941>"]
+toronbo1 = ["<:CerealianDB1:1355508560284614737>","<:CerealianDB2:1355508557537218791>","<:Toronbo:1322958774088106077>"]
+relics = [321,322,323,324]
 
-if settings.bot_name == "dragonballdex":
-    # AMOUNT NEEDED FOR TOP 1 CC BALL e.g. reichtangle
-    T1Req = 30
+@dataclass
+class BattleInstance:
+    p1_balls: list = field(default_factory=list)
+    p2_balls: list = field(default_factory=list)
+    winner: str = ""
+    turns: int = 0
 
-    # RARITY OF TOP 1 BALL e.g. reichtangle
-    # (If not originally inputted as 1 into admin panel or /admin balls create)
-    T1Rarity = 1
+@dataclass
+class GuildBattle:
+    interaction: discord.Interaction
 
-    # AMOUNT NEEDED FOR **MOST** COMMON CC BALL e.g. djibouti
-    CommonReq = 300
+    author: discord.Member
+    opponent: int
 
-    # RARITY OF MOST COMMON BALL e.g. djibouti
-    # (Which was originally inputted into admin panel or /admin balls create)
-    CommonRarity = 62
-else:
-    T1Req = 30
-    T1Rarity = 1
-    CommonReq = 500
-    CommonRarity = 233
+    author_ready: bool = False
+    opponent_ready: bool = False
 
-# ROUNDING OPTION FOR AMOUNTS NEEDED, WHAT YOU WOULD LIKE EVERYTHING TO ROUNDED TO
-# e.g. Putting 10 makes everything round to the nearest 10, cc reqs would look something like:(100,110,120,130,140,150 etc)
-# e.g. Putting 5 looks like: (100,105,110,115,120 etc)
-# e.g. Putting 20 looks like: (100,120,140,160,180,200 etc)
-# 1 is no rounding and looks like: (100,106,112,119,127 etc)
-# however you are not limited to these numbers, I think Ballsdex does 50
-RoundingOption = 10
-# WARNINGS:
-# if T1Req/CommonReq is not divisible by RoundingOption they will be affected.
-# if T1Req is less than RoundingOption it will be rounded down to 0, (That's just how integer conversions work in python unfortunately)
+    battle: BattleInstance = field(default_factory=BattleInstance)
 
-#Same thing but for diamond
-if settings.bot_name == "dragonballdex":
-    dT1Req = 3
-    dT1Rarity = 1
-    dCommonReq = 10
-    dCommonRarity = 62
-else:
-    dT1Req = 3
-    dT1Rarity = 1
-    dCommonReq = 10
-    dCommonRarity = 233
-dRoundingOption = 1
 
-if settings.bot_name == "dragonballdex":
-    sT1Req = 27.5 # this is so from t1 it's 25 and from t3.5 it becomes 30
-    sT1Rarity = 1
-    sCommonReq = 100
-    sCommonRarity = 62
-else:
-    sT1Req = 25
-    sT1Rarity = 1
-    sCommonReq = 200
-    sCommonRarity = 233
-sRoundingOption = 5
+def gen_deck(balls,ballinstances,maxallowed) -> str:
+    """Generates a text representation of the player's deck."""
+    if not balls:
+        return "Empty"
+    
+    if maxallowed[1]=="EDB":
+        dbdnames = shenron
+        dbdemojis = shenron1
+    elif maxallowed[1]=="SDB":
+        dbdnames = supershenron
+        dbdemojis = supershenron1
+    elif maxallowed[1]=="NDB":
+        dbdnames = porunga
+        dbdemojis = porunga1
+    elif maxallowed[1]=="DDB":
+        dbdnames = porungadaima
+        dbdemojis = porungadaima1
+    elif maxallowed[1]=="CDB":
+        dbdnames = toronbo
+        dbdemojis = toronbo1
+    if balls == "finalballs":
+        balls = ["1","1","1","1","1","1","1"]
+        dbdnames = balls
+        dbdemojis = ["⛔","⛔","⛔","⛔","⛔","⛔","⛔"]
+    if balls == "finaldragon":
+        balls = ["1",]
+        dbdnames = balls
+        dbdemojis = [dbdemojis[-1],]
+    
+        
+    deck_lines = [
 
-uncountablespecials = ("Champion Edition Goku","Champion Edition Vegeta","Ruby","Boss","Staff","Emerald","Shiny","Mythical","Relicborne","Collector","Diamond","Xeno Goku Black","Ultra Gogito","Goku Day","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna")
-log = logging.getLogger("ballsdex.packages.collector.cog")
+        f"- {dbdemojis[dbdnames.index(f'{str(ball)}')]} {ballinstance}"
+        for ball, ballinstance in zip(balls,ballinstances)
+    ]
 
-gradient = (CommonReq-T1Req)/(CommonRarity-T1Rarity)
-dgradient = (dCommonReq-dT1Req)/(dCommonRarity-dT1Rarity)
-sgradient = (sCommonReq-sT1Req)/(sCommonRarity-sT1Rarity)
+    deck = "\n".join(deck_lines)
 
-class Collector(commands.GroupCog):
+    if len(deck) <= 1024:
+        return deck
+
+    total_suffix = f"\nTotal: {len(balls)}"
+    suffix_length = len(total_suffix)
+    max_deck_length = 1024 - suffix_length
+    truncated_deck = ""
+    current_length = 0
+    
+    for line in deck_lines:
+        line_length = len(line) + (1 if truncated_deck else 0) 
+        if current_length + line_length > max_deck_length:
+            break
+        truncated_deck += ("\n" if truncated_deck else "") + line
+        current_length += line_length
+    
+    return truncated_deck + total_suffix
+
+def update_embed(
+    author_balls, opponent_balls, author_ogballs, opponent_ogballs, author_ready, opponent_ready, maxallowed
+) -> discord.Embed:
+    """Creates an embed for the battle setup phase."""
+    if maxallowed[1]=="EDB":
+        emoji1 = ballsemojis[0]
+        emoji2 = shenron1[-1]
+        rewardtext = "- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- -# **1× Relic Drop!**"
+    elif maxallowed[1]=="SDB":
+        emoji1 = ballsemojis[1]
+        emoji2 = supershenron1[-1]
+        rewardtext = "- **Wild Character Drop! ( ✨60% | 🌌12% )**\n- -# **4× Relic Drops!**"
+    elif maxallowed[1]=="NDB":
+        emoji1 = ballsemojis[2]
+        emoji2 = porunga1[-1]
+        rewardtext = "- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- **Wild Character Drop!**\n- -# **1× Relic Drop!**"
+    elif maxallowed[1]=="DDB":
+        emoji1 = ballsemojis[3]
+        emoji2 = porungadaima1[-1]
+        rewardtext = "- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- **Wild Character Drop! ( ✨2% | 🌌0.4% )**\n- -# **2× Relic Drops!**"
+    elif maxallowed[1]=="CDB":
+        emoji1 = ballsemojis[4]
+        emoji2 = toronbo1[-1]
+        rewardtext = "- **Wild Character Drop! ( ✨3% | 🌌0.6% )**\n- **Wild Character Drop! ( ✨3% | 🌌0.6% )**\n- -# **2× Relic Drops!**"
+    embed = discord.Embed(
+        title=f"{settings.collectible_name.title()} Wishing {emoji2} {emoji1}",
+        description=(
+            f"Use '/wish add' and '/wish remove' to add/remove requirements\n"
+            "Requires:\n"
+            "-Activation Dragon (Will **not** be deleted after the wish)\n"
+            "-Dragon Balls (Will be deleted after the wish)\n"
+            "Click the tick button when ready.\n-------\n"
+            "Rewards:\n"
+            f"{rewardtext}\n"
+        ),
+        color=discord.Colour.from_rgb(255,255,255),
+    )
+
+    author_emoji = ":white_check_mark:" if author_ready else ":dragon:"
+    opponent_emoji = ":white_check_mark:" if opponent_ready else ":EarthDragonBalls:"
+
+    embed.add_field(
+        name=f"Activation Dragon:",
+        value=gen_deck(author_balls, author_ogballs,maxallowed),
+        inline=True,
+    )
+    embed.add_field(
+        name=f"Dragon Balls:",
+        value=gen_deck(opponent_balls, opponent_ogballs,maxallowed),
+        inline=True,
+    )
+    return embed
+
+
+def create_disabled_buttons() -> discord.ui.View:
+    """Creates a view with disabled start and cancel buttons."""
+    view = discord.ui.View()
+    view.add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.success, emoji="✔", label="Ready", disabled=True
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.danger, emoji="✖", label="Cancel", disabled=True
+        )
+    )
+
+
+def fetch_battle(user: discord.User | discord.Member):
     """
-    Collector commands.
+    Fetches a wish based on the user provided.
+
+    Parameters
+    ----------
+    user: discord.User | discord.Member
+        The user you want to fetch the battle from.
+    """
+    found_battle = None
+
+    for battle in battles:
+        if user not in (battle.author, battle.opponent):
+            continue
+
+        found_battle = battle
+        break
+
+    return found_battle
+
+            
+        
+class Wish(commands.GroupCog):
+    """
+    Wish your Dragon Balls!
     """
 
     def __init__(self, bot: "BallsDexBot"):
         self.bot = bot
+        self.battlerounds = []
 
-    ccadmin = app_commands.Group(name="admin", description="admin commands for collector")
+    admin = app_commands.Group(
+        name='admin', description='Admin commands for wish'
+    )
 
-
-    async def emerald(
-        self,
-        user,
-        countryball: BallEnabledTransform,
-        ):
-        oneofonelist = []
-        if countryball.id != 33:
-            excludedspecials = uncountablespecials + ("Event Farmer",)
+    dbz = app_commands.Group(
+        name='dbz', description='Completion commands for wish'
+    )
+    craft = app_commands.Group(
+        name='craft', description='Relic crafting commands for wish'
+    )
+    
+    async def owned(self, player, character):
+        filters = {}
+        filters["ball"] = [x for x in balls.values() if x.country == f"{character}"][0]
+        filters["player__discord_id"] = player
+        count = await BallInstance.filter(**filters).count()
+        if count == 0:
+            return False
         else:
-            excludedspecials = uncountablespecials
-        missinglist = []
-        if settings.bot_name == "dragonballdex":
-            existinglist = ["Mythical","Collector","Diamond","Relicborne"]
+            return True
+       
+    async def relicupdate(self, interaction: discord.Interaction):
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(style=discord.ButtonStyle.primary, emoji="🌠", label="Craft", disabled=True))
+        await interaction.message.edit(view=view)
+        diffnoofrelics = 0
+        reliclists = [[],[],[],[]]
+        for r in range(len(relics)):
+            rfilters = {}
+            rfilters["ball"] = [x for x in balls.values() if x.id == (relics)[r]][0]
+            rfilters["player__discord_id"] = interaction.user.id
+            reliccheckcount = await BallInstance.filter(**rfilters).count()
+            reliclists[r] = await BallInstance.filter(**rfilters).prefetch_related("ball")
+            if reliccheckcount >= 1:
+                diffnoofrelics += 1
+        if diffnoofrelics < 4:
+            await interaction.response.send_message("You don't have enough relics to craft!",ephemeral=True)
         else:
-            existinglist = ["Mythical","Collector","Diamond","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
-        extrashinies = 0
-        checkfilter = {}
-        for x in specials.values():
-            if x.name not in excludedspecials:
-                filters = {}
-                filters["ball"] = countryball
-                filters["special"] = x
-                existcount = await BallInstance.filter(**filters).count()
-                if existcount > 1:
-                    existinglist.append(x.name)
-                elif existcount == 1:
-                    oneofonelist.append(x.name)
-                else:
-                    extrashinies += 1
-        passed = True
-        for sh in existinglist:
-            cfilters = {}
-            cfilters["ball"] = countryball
-            cspecial = [x for x in specials.values() if x.name == sh][0]
-            cfilters["special"] = cspecial
-            cfilters["player__discord_id"] = user.id
-            passcount = await BallInstance.filter(**cfilters).count()
-            if passcount == 0:
-                missinglist.append(sh)
-                passed = False
-        cfilters = {}
-        cfilters["ball"] = countryball
-        cfilters["special"]= [x for x in specials.values() if x.name == "Shiny"][0]
-        cfilters["player__discord_id"] = user.id
-        diamondsubtractor = int(int((dgradient*(countryball.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
-        passcount = await BallInstance.filter(**cfilters).count() - diamondsubtractor
-        if passcount < extrashinies and extrashinies != 0:
-            missinglist.append(f"{extrashinies} Extra Shiny")
-            passed = False
-            extraextrashinies = 0
-        else:
-            extraextrashinies = passcount - extrashinies
-        missingoneofones = len(oneofonelist)
-        missingoneofones -= extraextrashinies
-        missingonetext = []
-        if missingoneofones >= 1:
-            for ones in oneofonelist:
-                cfilters = {}
-                cfilters["ball"] = countryball
-                cspecial = [x for x in specials.values() if x.name == ones][0]
-                cfilters["special"] = cspecial
-                cfilters["player__discord_id"] = user.id
-                passcount2 = await BallInstance.filter(**cfilters).count()
-                if passcount2 > 0:
-                    missingoneofones -= 1
-                else:
-                    missingonetext.append(f"{ones} / Additional Extra Shiny")
-        if missingoneofones >= 1:
-            passed = False
-            for mt in missingonetext:
-                missinglist.append(mt)
-        if passed:
-            replyanswer = "passed"
-        else:
-            lines = "Required Specials:\n"
-            missinglines = "You are currently missing:\n"
-            for s in existinglist:
-                lines+=f"1×`{s}`\n"
-            for m in missinglist:
-                missinglines+=f"`{m}`\n"
-            if extrashinies != 0:
-                lines+=f"{extrashinies}×`Extra Shiny`\n"
-            if oneofonelist != []:
-                lines+="Optional Specials that can be replaced with additional Extra Shiny **each** if not obtained:\n"
-                for s in oneofonelist:
-                    lines+=f"1×`{s}`\n"
-                lines+=f"-# *Note: Unfinished events may become required in the near future.*\n"
-            replyanswer = (f"# Emerald {countryball.country} {settings.collectible_name}:\n{lines}\n{missinglines}\n")
-        return replyanswer
-
-    async def ruby(
-        self,
-        user,
-        countryball: BallEnabledTransform,
-        ):
-        collector_number = int(int((gradient*(countryball.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
-        collector_extra = math.ceil(collector_number*1.5)
-        collector_total = collector_number + collector_extra
-        diamond_number = int(int((dgradient*(countryball.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
-        relicborne_number = math.ceil(diamond_number/1.5)
-        mythical_number = int(diamond_number/2)
-        specials_number = int(int((sgradient*(countryball.rarity-sT1Rarity) + sT1Req)/sRoundingOption)*sRoundingOption)
-        missinglistr = []
-        if settings.bot_name == "dragonballdex":
-            specialsneededlist = ["1×`Emerald`","3×`Boss`",f"{mythical_number}×`Extra Mythical` [{1+mythical_number} total]",f"{relicborne_number}×`Extra Relicborne` [{1+relicborne_number} total]"]
-        else:
-            specialsneededlist = ["1×`Emerald`","3×`Boss`",f"{mythical_number}×`Extra Mythical` [{1+mythical_number} total]"]
-        passedr = True
-        basefilters = {}
-        basefilters["ball"] = countryball
-        basefilters["player__discord_id"] = user.id
-        basecount = await BallInstance.filter(**basefilters).count()
-        if basecount < collector_total:
-            missinglistr.append(f"`{collector_extra} Extra`")
-            passedr = False
-        specialsfilters = {}
-        specialsfilters["ball"] = countryball
-        specialsfilters["player__discord_id"] = user.id
-        specialscount = await BallInstance.filter(**specialsfilters).exclude(special=None).count()
-        if specialscount < specials_number:
-            missinglistr.append(f"`{specials_number} total specials`")
-            passedr = False
-        emeraldspecial = [x for x in specials.values() if x.name == "Emerald"][0]
-        emeraldfilters = {}
-        emeraldfilters["ball"] = countryball
-        emeraldfilters["special"] = emeraldspecial
-        emeraldfilters["player__discord_id"] = user.id
-        emeraldcount = await BallInstance.filter(**emeraldfilters).count()
-        if emeraldcount == 0:
-            missinglistr.append("`Emerald`")
-            passedr = False
-        bossspecial = [x for x in specials.values() if x.name == "Boss"][0]
-        bossfilters = {}
-        bossfilters["ball"] = countryball
-        bossfilters["special"] = bossspecial
-        bossfilters["player__discord_id"] = user.id
-        bosscount = await BallInstance.filter(**bossfilters).count()
-        if bosscount < 3:
-            missinglistr.append("`3 Boss`")
-            passedr = False
-        mythicalspecial = [x for x in specials.values() if x.name == "Mythical"][0]
-        mythicalfilters = {}
-        mythicalfilters["ball"] = countryball
-        mythicalfilters["special"]= mythicalspecial
-        mythicalfilters["player__discord_id"] = user.id
-        mythicalcount = await BallInstance.filter(**mythicalfilters).count()
-        if mythicalcount < 1 + mythical_number:
-            missinglistr.append(f"`{mythical_number} Extra Mythical`")
-            passedr = False
-        if settings.bot_name == "dragonballdex":
-            relicbornespecial = [x for x in specials.values() if x.name == "Relicborne"][0]
-            relicbornefilters = {}
-            relicbornefilters["ball"] = countryball
-            relicbornefilters["special"]= relicbornespecial
-            relicbornefilters["player__discord_id"] = user.id
-            relicbornecount = await BallInstance.filter(**relicbornefilters).count()
-            if relicbornecount < 1 + relicborne_number:
-                missinglistr.append(f"`{relicborne_number} Extra Relicborne`")
-                passedr = False
-        if passedr:
-            replyruby = "passed"
-        else:
-            lines = (
-                f"You need **{collector_extra} extra {countryball.country}** "
-                f"(**{collector_total} total**; you currently have `{basecount}`).\n"
-                f"You also need **{specials_number} total specials** (you currently have `{specialscount}`) __including Required Specials below__ to create a **Ruby character**.\n\n"
-                "Required Specials:\n"
+            await interaction.response.defer(thinking=True)
+            reliccounts = [0,0,0,0]
+            for r in range(len(relics)):
+                deleterelic = reliclists[r][0]
+                await deleterelic.delete()
+                rfilters = {}
+                rfilters["ball"] = [x for x in balls.values() if x.id == (relics)[r]][0]
+                rfilters["player__discord_id"] = interaction.user.id
+                reliccheckcount = await BallInstance.filter(**rfilters).count()
+                reliccounts[r] = reliccheckcount
+            embed = discord.Embed(
+                title=f"Relic Crafting",
+                description=f"Craft the 4 relics to receive a random 🌠Relicborne character!"
             )
-            missinglines = "You are currently missing:\n"
-            for s in specialsneededlist:
-                lines+=f"{s}\n"
-            for m in missinglistr:
-                missinglines+=f"{m}\n"
-            replyruby = (f"# Ruby {countryball.country} {settings.collectible_name}:\n{lines}\n{missinglines}\n")
-        return replyruby
-        
+            embed.color=discord.Colour.from_rgb(82,92,145) 
+            embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
 
-        
-    @app_commands.command()
+            for r in range(len(relics)):
+                relicname=[x for x in balls.values() if x.id == (relics)[r]][0]
+                embed.add_field(
+                    name=f"{self.bot.get_emoji(relicname.emoji_id)} {relicname}",
+                    value=f"Count: {reliccounts[r]}",
+                    inline=True,
+                )
+            cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
+            resultball = await cog.countryball_cls.get_random(interaction.client)
+            ball= [x for x in balls.values() if x.country == f"{resultball.name}"][0]
+            plusatk = ""
+            plushp = ""
+            dasatk = int(settings.max_attack_bonus)
+            dashp = int(settings.max_health_bonus)
+            atkrng = random.randint(-1*dasatk, dasatk)
+            if atkrng >= 0:
+                plusatk = "+"
+            hprng = random.randint(-1*dashp, dashp)
+            if hprng >= 0:
+                plushp = "+"
+            statsresults = f"`({plusatk}{atkrng}ATK/{plushp}{hprng}HP)`"
+            player, created = await Player.get_or_create(discord_id=interaction.user.id)
+            instance = await BallInstance.create(
+                ball= ball,
+                player=player,
+                special = [x for x in specials.values() if x.name == "Relicborne"][0],
+                attack_bonus=atkrng,
+                health_bonus=hprng,
+            )
+            await interaction.followup.send(f"{interaction.user.mention} You crafted **{ball}**! {statsresults}\n\n***🌠 It's a Relicborne character! 🌠***")
+            try:
+                await interaction.response.defer()
+            except discord.errors.InteractionResponded:
+                pass
+            await interaction.message.edit(embed=embed)
+            await asyncio.sleep(5)
+            original_user = interaction.user  # The original crafter
+            new_button = discord.ui.Button(style=discord.ButtonStyle.primary, emoji="🌠", label="Craft")
+
+            async def new_callback(i: discord.Interaction):
+                if i.user != original_user:
+                    await i.response.send_message("This button isn't for you!", ephemeral=True)
+                    return
+                await self.relicupdate(i)
+
+            new_button.callback = new_callback
+
+            view = discord.ui.View(timeout=60)
+            view.add_item(new_button)
+            await interaction.message.edit(view=view)
+    
+    @craft.command(name="relics")
     @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
+    async def relics(self, interaction: discord.Interaction):
+        """
+        Craft the 4 relics!
+        """
+        await interaction.response.defer(thinking=True)
+        diffnoofrelics = 0
+        reliccounts = [0,0,0,0]
+        for r in range(len(relics)):
+            rfilters = {}
+            rfilters["ball"] = [x for x in balls.values() if x.id == (relics)[r]][0]
+            rfilters["player__discord_id"] = interaction.user.id
+            reliccheckcount = await BallInstance.filter(**rfilters).count()
+            reliccounts[r] = reliccheckcount
+            if reliccheckcount >= 1:
+                diffnoofrelics += 1
+        embed = discord.Embed(
+            title=f"Relic Crafting",
+            description=f"Craft the 4 relics to receive a random 🌠Relicborne character!"
+        )
+        embed.color=discord.Colour.from_rgb(82,92,145) 
+        embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
+        for r in range(len(relics)):
+            relicname=[x for x in balls.values() if x.id == (relics)[r]][0]
+            embed.add_field(
+                name=f"{self.bot.get_emoji(relicname.emoji_id)} {relicname}",
+                value=f"Count: {reliccounts[r]}",
+                inline=True,
+            )
+        original_user = interaction.user
+        
+        start_button = discord.ui.Button(
+            style=discord.ButtonStyle.primary, emoji="🌠", label="Craft"
+        )
+
+        async def protected_callback(button_interaction: discord.Interaction):
+            if button_interaction.user != original_user:
+                await button_interaction.response.send_message(
+                    "This button isn't for you!", ephemeral=True
+                )
+                return
+            await self.relicupdate(button_interaction)
+    
+        # Set callbacks
+
+        start_button.callback = protected_callback
+
+        view = discord.ui.View(timeout=60)
+        
+        view.add_item(start_button)
+
+        await interaction.followup.send(
+            embed=embed,
+            view=view,
+        )
+        
+    @craft.command(name="relics_2")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: i.user.id)
     @app_commands.choices(
-        collector_type=[
-            app_commands.Choice(name="Collector", value="Collector"),
-            app_commands.Choice(name="Diamond", value="Diamond"),
-            app_commands.Choice(name="Emerald", value="Emerald"),
-            app_commands.Choice(name="Ruby", value="Ruby"),
+        chosen_relic=[
+            app_commands.Choice(name="Relic of Divinity", value=324),
+            app_commands.Choice(name="Relic of Monarchy", value=323),
+            app_commands.Choice(name="Relic of Destruction", value=322),
+            app_commands.Choice(name="Relic of Tyranny", value=321),
         ]
     )
-    async def card(
+    async def specificrelic(
         self,
         interaction: discord.Interaction,
-        countryball: BallEnabledTransform,
-        collector_type: str
-        ):
+        owned_relic1: BallInstanceTransform,
+        owned_relic2: BallInstanceTransform,
+        chosen_relic: int
+    ):
         """
-        Get the collector card for a countryball - collector made by Kingofthehill4965, diamond/emerald/ruby by MoOfficial.
+        Fuse two relics to form a chosen relic.
+
+        Parameters
+        ----------
+        owned_relic1: BallInstanceTransform
+            Select the first relic you own for fusion.
+        owned_relic2: BallInstanceTransform
+            Select the second relic you own for fusion.
+        chosen_relic: int
+            The relic you want to create from the fusion.
+        """
+        new_player, _ = await Player.get_or_create(discord_id=417286033487429633)
+        owned_relic1.player = new_player
+        await owned_relic1.save()
+        owned_relic2.player = new_player
+        await owned_relic2.save()
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        old_player, _ = await Player.get_or_create(discord_id=interaction.user.id)
+        if (await owned_relic1.ball).id not in relics or (await owned_relic2.ball).id not in relics:
+            await interaction.followup.send(
+                "You must select valid relics!",
+                ephemeral=True
+            )
+            owned_relic1.player = old_player
+            await owned_relic1.save()
+            owned_relic2.player = old_player
+            await owned_relic2.save()
+            return
+
+        if owned_relic1 == owned_relic2:
+            await interaction.followup.send(
+                "You cannot select relic with the same (Character #ID) twice.",
+                ephemeral=True
+            )
+            owned_relic1.player = old_player
+            await owned_relic1.save()
+            owned_relic2.player = old_player
+            await owned_relic2.save()
+            return
+
+        if chosen_relic in ((await owned_relic1.ball).id, (await owned_relic2.ball).id):
+            await interaction.followup.send(
+                "The chosen relic must be different from the relics you are using!", 
+                ephemeral=True
+            )
+            owned_relic1.player = old_player
+            await owned_relic1.save()
+            owned_relic2.player = old_player
+            await owned_relic2.save()
+            return
+        resultrelic = [x for x in balls.values() if x.id==chosen_relic][0]
+        instance = await BallInstance.create(
+                    ball=resultrelic,
+                    player=old_player,
+                    special=None,
+                    attack_bonus=0,
+                    health_bonus=0,
+                )
+        await interaction.followup.send(
+            f"You successfully fused {owned_relic1} and {owned_relic2} "
+            f"to create {resultrelic}!",
+            ephemeral=True
+        )
+    
+    @dbz.command(name="completion")
+    @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
+    async def completion(self, interaction: discord.Interaction, user: discord.User | None = None):
+        """
+        Show your dragon ball completion for wishing
+        
+        Parameters
+        ----------
+        user: discord.User
+            The user whose completion you want to view, if not yours.
+        """
+        user_obj = user or interaction.user
+        await interaction.response.defer(thinking=True)
+        if user is not None:
+            try:
+                player = await Player.get(discord_id=user_obj.id)
+            except DoesNotExist:
+                await interaction.followup.send(
+                    f"{user_obj.name} doesn't have any "
+                    f"{extra_text}{settings.plural_collectible_name} yet."
+                )
+                return
+
+            interaction_player, _ = await Player.get_or_create(discord_id=interaction.user.id)
+
+            blocked = await player.is_blocked(interaction_player)
+            if blocked and not is_staff(interaction):
+                await interaction.followup.send(
+                    "You cannot view the completion of a user that has blocked you.",
+                    ephemeral=True,
+                )
+                return
+
+            if await inventory_privacy(self.bot, interaction, player, user_obj) is False:
+                return
+        embed = discord.Embed(
+            title=f"Wish Completion",
+            description=f"Dragon Ball completion of {user_obj.mention}",
+        )
+        embed.color=discord.Colour.from_rgb(0,0,255)
+        embed.set_author(name=user_obj.display_name, icon_url=user_obj.display_avatar.url)
+        embed.set_footer(text="Use '/dbz completion' for the full dex completion.")
+
+        fullresult = []
+        fullset = [supershenron,shenron,porunga,porungadaima,toronbo]
+        fullemojis = [supershenron1,shenron1,porunga1,porungadaima1,toronbo1]
+        emojisetcount = 0
+        for dbdnames in fullset:
+            result = ""
+            for n in range(len(dbdnames)):
+                if n-1 == -1:
+                    cutter=dbdnames[n-1]
+                else:
+                    cutter="#"+str(n)
+                if await self.owned(user_obj.id,dbdnames[n-1]):
+                    result += f"- :white_check_mark:{fullemojis[emojisetcount][dbdnames.index(f'{str(dbdnames[n-1])}')]}{cutter}\n"
+                else:
+                    result += f"- :x:{fullemojis[emojisetcount][dbdnames.index(f'{str(dbdnames[n-1])}')]}{cutter}\n"
+            emojisetcount += 1
+            fullresult.append(result)
+            
+        embed.add_field(
+            name=f"Super Dragon Balls:",
+            value=fullresult[0],
+            inline=True,
+        )
+        embed.add_field(
+            name=f"Earth Dragon Balls:",
+            value=fullresult[1],
+            inline=True,
+        )
+        embed.add_field(
+            name=f"Namekian Dragon Balls:",
+            value=fullresult[2],
+            inline=True,
+        )
+        embed.add_field(
+            name=f"Demon Realm Dragon Balls:",
+            value=fullresult[3],
+            inline=True,
+        )
+        embed.add_field(
+            name=f"Cerealian Dragon Balls:",
+            value=fullresult[4],
+            inline=True,
+        )
+        
+        await interaction.followup.send(
+            embed=embed,
+        )
+    
+    async def start_battle(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        guild_battle = fetch_battle(interaction.user)
+
+        if guild_battle is None:
+            await interaction.followup.send(
+                "This wish doesn't belong to you.", ephemeral=True
+            )
+            return
+        
+        # Set the player's readiness status
+
+        if interaction.user == guild_battle.author:
+            guild_battle.author_ready = True
+            guild_battle.opponent_ready = True
+        # If both players are ready, start the battle
+        if not (guild_battle.battle.p1_balls and guild_battle.battle.p2_balls):
+            await interaction.followup.send(
+                f"Insufficient Materials!",ephemeral=True
+            )
+            return
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                maxallowed = bround[2]
+                break
+        if len(guild_battle.battle.p2_balls) != maxallowed[0]:
+            await interaction.followup.send(
+                f"Insufficient Materials!",ephemeral=True
+            )
+            return
+        new_view = create_disabled_buttons()
+        textvalue1 = ""
+        colorvalue1 = discord.Color.green()
+        for ball in guild_battle.battle.p2_balls:
+            realball = await BallInstance.get(id=ball.pk).prefetch_related(
+                "player"
+            )
+            if f"{await realball.player}" != f"{interaction.user.id}":
+                textvalue1 = "⚠️ One or more Dragon Balls do not belong to you.\nThis wish has been cancelled."
+                colorvalue1 = discord.Color.dark_orange()
+        if textvalue1 == "":
+            for ball in guild_battle.battle.p2_balls:
+                realball = await BallInstance.get(id=ball.pk).prefetch_related(
+                    "player"
+                )
+                playerr = await realball.player
+                if f"{playerr}" != f"{interaction.user.id}":
+                    textvalue1 = "⚠️ One or more Dragon Balls do not belong to you.\nThis wish has been cancelled."
+                    colorvalue1 = discord.Color.dark_orange()
+                else:
+                    await realball.delete()
+        noofrewards = maxallowed[0]
+        if maxallowed[1]=="EDB":
+            shiny_percentage = -1
+            mythical_percentage = -1
+            noofrelics = 1
+        elif maxallowed[1]=="SDB":
+            shiny_percentage = 60
+            mythical_percentage = 30 #multiplied by 100/40 for accurancy since it also relies on shiny not being shiny
+            noofrewards = 1
+            noofrelics = 4
+        elif maxallowed[1]=="NDB":
+            shiny_percentage = -1
+            mythical_percentage = -1
+            noofrelics = 1
+        elif maxallowed[1]=="DDB":
+            shiny_percentage = 2
+            mythical_percentage = 0.408
+            noofrelics = 2
+        elif maxallowed[1]=="CDB":
+            shiny_percentage = 3
+            mythical_percentage = 0.619
+            noofrelics = 2
+        if textvalue1 =="":
+            cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
+            for i in range(noofrewards):
+                resultball = await cog.countryball_cls.get_random(interaction.client)
+                while f"{resultball.name}" in shenron+porunga+porungadaima+toronbo+supershenron and f"{resultball.name}" not in dragons:
+                    resultball = await cog.countryball_cls.get_random(interaction.client)
+                ball= [x for x in balls.values() if x.country == f"{resultball.name}"][0]
+                shinyresult = ""
+                mythicalresult = ""
+                plusatk = ""
+                plushp = ""
+                special = None
+                shinyrng = random.uniform(0,100)
+                mythicalrng = random.uniform(0,100)
+                dasatk = int(settings.max_attack_bonus)
+                dashp = int(settings.max_health_bonus)
+                atkrng = random.randint(-1*dasatk, dasatk)
+                if atkrng >= 0:
+                    plusatk = "+"
+                hprng = random.randint(-1*dashp, dashp)
+                if hprng >= 0:
+                    plushp = "+"
+                if shinyrng < (shiny_percentage):
+                    shinyresult = f"\n***✨ It's a shiny {settings.collectible_name}! ✨***"
+                    special = [x for x in specials.values() if x.name == "Shiny"][0]
+                elif mythicalrng < (mythical_percentage):
+                    mythicalresult = f"\n*🔮 This {settings.collectible_name} exudes a mythical aura.🔮*"
+                    special = [x for x in specials.values() if x.name == "Mythical"][0]
+                statsresults = f"\n`{plusatk}{atkrng}ATK/{plushp}{hprng}HP`"
+                textvalue1 += (f"{self.bot.get_emoji(ball.emoji_id)} {ball}{statsresults}{shinyresult}{mythicalresult}\n\n")
+                player, created = await Player.get_or_create(discord_id=interaction.user.id)
+                instance = await BallInstance.create(
+                    ball= ball,
+                    player=player,
+                    special=special,
+                    attack_bonus=atkrng,
+                    health_bonus=hprng,
+                )
+            for i in range(noofrelics):
+                relic_id = random.choice(relics)
+                resultrelic = [x for x in balls.values() if x.id==relic_id][0]
+                textvalue1 += (f"{self.bot.get_emoji(resultrelic.emoji_id)} {resultrelic}\n")
+                player, created = await Player.get_or_create(discord_id=interaction.user.id)
+                instance = await BallInstance.create(
+                    ball= resultrelic,
+                    player=player,
+                    special=None,
+                    attack_bonus=0,
+                    health_bonus=0,
+                )
+        embed = discord.Embed(
+            title=f"{settings.collectible_name.title()} Wishing",
+            description=f"Wishing of {guild_battle.author.mention}",
+            color=colorvalue1,
+        )
+        if textvalue1 == "⚠️ One or more Dragon Balls do not belong to you.\nThis wish has been cancelled.":
+            noentry = ":no_entry_sign: "
+            dragonvalue = "Cancelled"
+            ballsvalue = "Cancelled"
+        else:
+            noentry = ""
+            dragonvalue = gen_deck("finaldragon",guild_battle.battle.p1_balls,maxallowed)
+            ballsvalue = gen_deck("finalballs",guild_battle.battle.p2_balls,maxallowed)
+        embed.add_field(
+            name=f"{noentry}Activation Dragon:",
+            value=dragonvalue,
+            inline=True,
+        )
+        embed.add_field(
+            name=f"{noentry}Dragon Balls:",
+            value=ballsvalue,
+            inline=True,
+        )
+        embed.add_field(
+            name="Reward:",
+            value=textvalue1,
+            inline=False,
+        )
+
+        await interaction.message.edit(
+            content=f"{guild_battle.author.mention}'s reward(s)",
+            embed=embed,
+            view=new_view,
+        )
+        battles.pop(battles.index(guild_battle))
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                self.battlerounds.remove(bround)
+                break
+
+    async def cancel_battle(self, interaction: discord.Interaction):
+        guild_battle = fetch_battle(interaction.user)
+
+        if guild_battle is None:
+            await interaction.response.send_message(
+                "That is not your wish!", ephemeral=True
+            )
+            return
+
+        embed = discord.Embed(
+            title=f"{settings.collectible_name.title()} Wishing",
+            description="The wish has been cancelled.",
+            color=discord.Color.red(),
+        )
+        embed.add_field(
+            name=f":no_entry_sign: Activation Dragon:",
+            value="Cancelled",
+            inline=True,
+        )
+        embed.add_field(
+            name=f":no_entry_sign: Dragon Balls:",
+            value="Cancelled",
+            inline=True,
+        )
+
+        try:
+            await interaction.response.defer()
+        except discord.errors.InteractionResponded:
+            pass
+
+        await interaction.message.edit(embed=embed, view=create_disabled_buttons())
+        battles.pop(battles.index(guild_battle))
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                self.battlerounds.remove(bround)
+                break
+
+    @app_commands.command()
+    @app_commands.choices(
+        dragon=[
+            app_commands.Choice(name="Shenron", value="EDB"),
+            app_commands.Choice(name="Super Shenron", value="SDB"),
+            app_commands.Choice(name="Porunga", value="NDB"),
+            app_commands.Choice(name="Porunga (Daima)", value="DDB"),
+            app_commands.Choice(name="Toronbo", value="CDB"),
+        ]
+    )
+    async def start(self, interaction: discord.Interaction, dragon: str):
+        """
+        Start a wish!
+
+        Parameters
+        ----------
+        dragon: str
+            The type of wish you would like to make.
+
+        max_amount: int | None = 0
+            The maximum amount of characters allowed each.
+        """
+        if fetch_battle(interaction.user) is not None:
+            await interaction.response.send_message(
+                "You are already wishing. You may use `/wish cancel` to cancel it.", ephemeral=True,
+            )
+            return
+        imaginaryopponent = random.randint(0,9999999)
+        battles.append(GuildBattle(interaction, interaction.user, imaginaryopponent))
+        if dragon == "SDB" or dragon == "NDB" or dragon == "EDB":
+            max_amount = [7,dragon]
+        elif dragon == "DDB":
+            max_amount = [3,dragon]
+        else:
+            max_amount = [2,dragon]
+        self.battlerounds.append([interaction.user.id,imaginaryopponent,max_amount])
+        
+        embed = update_embed([], [], interaction.user.name, dragon, False, False, max_amount)
+
+        start_button = discord.ui.Button(
+            style=discord.ButtonStyle.success, emoji="✔", label="Wish"
+        )
+        cancel_button = discord.ui.Button(
+            style=discord.ButtonStyle.danger, emoji="✖", label="Cancel"
+        )
+
+        # Set callbacks
+
+        start_button.callback = self.start_battle
+        cancel_button.callback = self.cancel_battle
+
+        view = discord.ui.View(timeout=None)
+
+        view.add_item(start_button)
+        view.add_item(cancel_button)
+
+        await interaction.response.send_message(
+            embed=embed,
+            view=view,
+        )
+
+    async def add_balls(self, interaction: discord.Interaction, countryballs):
+        guild_battle = fetch_battle(interaction.user)
+
+        if guild_battle is None:
+            await interaction.response.send_message(
+                "You aren't wishing!", ephemeral=True
+            )
+            return
+        
+        if interaction.guild_id != guild_battle.interaction.guild_id:
+            await interaction.response.send_message(
+                "You must be in the same server as your wish to use commands.", ephemeral=True
+            )
+            return
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                maxallowed = bround[2]
+                break
+
+        if maxallowed[1]=="EDB":
+            if f"{await countryballs[0].ball}" not in shenron:
+                await interaction.response.send_message("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!", ephemeral=True)
+                return
+        elif maxallowed[1]=="SDB":
+            if f"{await countryballs[0].ball}" not in supershenron:
+                await interaction.response.send_message("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!", ephemeral=True)
+                return
+        elif maxallowed[1]=="NDB":
+            if f"{await countryballs[0].ball}" not in porunga:
+                await interaction.response.send_message("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!", ephemeral=True)
+                return
+        elif maxallowed[1]=="DDB":
+            if f"{await countryballs[0].ball}" not in porungadaima:
+                await interaction.response.send_message("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!", ephemeral=True)
+                return
+        elif maxallowed[1]=="CDB":
+            if f"{await countryballs[0].ball}" not in toronbo:
+                await interaction.response.send_message("That is not needed for the wish you have chosen!\nPlease make sure to use the correct Dragon and Dragon Balls for this wish!", ephemeral=True)
+                return
+        else:
+            await interaction.response.send_message("Oops, you have caught an error! please dm moofficial to fix this")
+        # Determine if the user is the author or opponent and get the appropriate ball list
+
+        user_balls = (
+            guild_battle.battle.p1_balls
+            if f"{await countryballs[0].ball}" in dragons
+            else guild_battle.battle.p2_balls
+        )
+
+
+        if len(user_balls) != 0 and f"{await countryballs[0].ball}" in dragons:
+            await interaction.response.send_message(
+                f"You have already added the Activation Dragon!", ephemeral=True
+            )
+            return
+        elif len(user_balls) == maxallowed[0]:
+            await interaction.response.send_message(
+                f"You cannot add anymore dragon balls as you have already reached the max amount limit!", ephemeral=True
+            )
+            return
+        # Create
+        for country in countryballs:
+            ball = country
+            # Check if ball has already been added
+
+            if ball in user_balls:
+                yield True
+                continue
+            for user_ball in user_balls:
+                if await ball.ball == await user_ball.ball:
+                    yield True
+                    continue
+
+            user_balls.append(ball)
+            yield False
+
+            p12 = []
+            p22 = []
+            for ball in guild_battle.battle.p1_balls:
+                p12.append(await ball.ball)
+            for ball in guild_battle.battle.p2_balls:
+                p22.append(await ball.ball)
+
+        # Update the battle embed for both players
+        await guild_battle.interaction.edit_original_response(
+            embed=update_embed(
+                p12,
+                p22,
+                guild_battle.battle.p1_balls,
+                guild_battle.battle.p2_balls,
+                guild_battle.author_ready,
+                guild_battle.opponent_ready,
+                maxallowed,
+            )
+        )
+
+    async def remove_balls(self, interaction: discord.Interaction, countryballs):
+        guild_battle = fetch_battle(interaction.user)
+
+        if guild_battle is None:
+            await interaction.response.send_message(
+                "You aren't wishing!", ephemeral=True
+            )
+            return
+        
+        if interaction.guild_id != guild_battle.interaction.guild_id:
+            await interaction.response.send_message(
+                "You must be in the same server as your wish to use commands.", ephemeral=True
+            )
+            return
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                maxallowed = bround[2]
+                break
+
+        # Determine if the user is the author or opponent and get the appropriate ball list
+
+        user_balls = (
+            guild_battle.battle.p1_balls
+            if f"{await countryballs[0].ball}" in dragons
+            else guild_battle.battle.p2_balls
+        )
+        # Create
+        for country in countryballs:
+            ball = country
+            # Check if ball has already been added
+
+            if ball not in user_balls:
+                yield True
+                continue
+            
+            user_balls.remove(ball)
+            yield False
+
+            p12 = []
+            p22 = []
+            for ball in guild_battle.battle.p1_balls:
+                p12.append(await ball.ball)
+            for ball in guild_battle.battle.p2_balls:
+                p22.append(await ball.ball)
+
+        # Update the battle embed for both players
+        await guild_battle.interaction.edit_original_response(
+            embed=update_embed(
+                p12,
+                p22,
+                guild_battle.battle.p1_balls,
+                guild_battle.battle.p2_balls,
+                guild_battle.author_ready,
+                guild_battle.opponent_ready,
+                maxallowed,
+            )
+        )
+
+    @app_commands.command()
+    async def add(
+        self, interaction: discord.Interaction, countryball: BallInstanceTransform, special: SpecialEnabledTransform | None = None,
+    ):
+        """
+        Adds a countryball to a wish.
 
         Parameters
         ----------
         countryball: Ball
-            The countryball you want to obtain the collector card for.
-        collector_type: str
-            The type of card you want to claim 
+            The countryball you want to add.
         """
-        if interaction.response.is_done():
-            return
-        assert interaction.guild
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        if collector_type == "Emerald":
-            #check if emerald exists
-            checkfilter = {}
-            checkspecial = [x for x in specials.values() if x.name == "Emerald"][0]
-            checkfilter["special"] = checkspecial
-            checkfilter["player__discord_id"] = interaction.user.id
-            checkfilter["ball"] = countryball
-            checkcounter = await BallInstance.filter(**checkfilter).count()
-            if checkcounter >= 1:
-                return await interaction.followup.send(
-                    f"You already have {countryball.country} emerald card."
-                )
-            answerreply = await self.emerald(interaction.user, countryball)
-            if answerreply == "passed":
-                player, created = await Player.get_or_create(discord_id=interaction.user.id)
-                await BallInstance.create(
-                ball=countryball,
-                player=player,
-                attack_bonus=0,
-                health_bonus=0,
-                special=checkspecial,
-                )
-                await interaction.followup.send(f"Congrats! You are now a {countryball.country} emerald collector.")
-            else:
-                await interaction.followup.send(answerreply)
-            return
-        elif collector_type == "Ruby":
-            #check if emerald exists
-            checkfilter = {}
-            checkspecial = [x for x in specials.values() if x.name == "Ruby"][0]
-            checkfilter["special"] = checkspecial
-            checkfilter["player__discord_id"] = interaction.user.id
-            checkfilter["ball"] = countryball
-            checkcounter = await BallInstance.filter(**checkfilter).count()
-            if checkcounter >= 1:
-                return await interaction.followup.send(
-                    f"You already have {countryball.country} ruby card."
-                )
-            answerreply = await self.ruby(interaction.user, countryball)
-            if answerreply == "passed":
-                player, created = await Player.get_or_create(discord_id=interaction.user.id)
-                await BallInstance.create(
-                ball=countryball,
-                player=player,
-                attack_bonus=0,
-                health_bonus=0,
-                special=checkspecial,
-                )
-                await interaction.followup.send(f"Congrats! You are now a {countryball.country} ruby collector.")
-            else:
-                await interaction.followup.send(answerreply)
-            return
-        elif collector_type == "Diamond":
-            diamond = True
-        else:
-            diamond = False
-        filters = {}
-        checkfilter = {}
-        if countryball:
-            filters["ball"] = countryball
-        if diamond:
-            special = [x for x in specials.values() if x.name == "Diamond"][0]
-        else:
-            special = [x for x in specials.values() if x.name == "Collector"][0]
-        checkfilter["special"] = special
-        checkfilter["player__discord_id"] = interaction.user.id
-        checkfilter["ball"] = countryball
-        checkcounter = await BallInstance.filter(**checkfilter).count()
-        if checkcounter >= 1:
-            if diamond:
-                return await interaction.followup.send(
-                    f"You already have {countryball.country} diamond card."
-                )
-            else:
-                return await interaction.followup.send(
-                    f"You already have {countryball.country} collector card."
-                )
-        filters["player__discord_id"] = interaction.user.id
-        if diamond:
-            shiny = [x for x in specials.values() if x.name == "Shiny"][0]
-            filters["special"] = shiny
-        balls = await BallInstance.filter(**filters).count()
-
-        if diamond:
-            collector_number = int(int((dgradient*(countryball.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
-        else:
-            collector_number = int(int((gradient*(countryball.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
-
-        country = f"{countryball.country}"
-        player, created = await Player.get_or_create(discord_id=interaction.user.id)
-        if balls >= collector_number:
-            if diamond:
-                diamondtext = " diamond"
-            else:
-                diamondtext = ""
-            await interaction.followup.send(
-                f"Congrats! You are now a {country}{diamondtext} collector.", 
-                ephemeral=True
-            )
-            await BallInstance.create(
-            ball=countryball,
-            player=player,
-            attack_bonus=0,
-            health_bonus=0,
-            special=special,
-            )
-        else:
-            if diamond:
-                text0 = "diamond"
-                shinytext = " Shiny✨"
-            else:
-                text0 = "collector"
-                shinytext = ""
-            await interaction.followup.send(
-                f"You need {collector_number}{shinytext} {country} to create a {text0} ball. You currently have {balls}"
-            )
-            
-    @app_commands.command()
-    @app_commands.choices(
-        collector_type=[
-            app_commands.Choice(name="Collector", value="Collector"),
-            app_commands.Choice(name="Diamond", value="Diamond"),
-            app_commands.Choice(name="Ruby", value="Ruby")
-        ]
-    )
-    async def list(self, interaction: discord.Interaction["BallsDexBot"], collector_type: str):
-        # DO NOT CHANGE THE CREDITS TO THE AUTHOR HERE!
-        """
-        Show the collector card list of the dex - inpsired by GamingadlerHD, made by MoOfficial.
-
-        Parameters
-        ----------
-        collector_type: str
-            The type of card you want to view
-        """
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        diamond=False
-        ruby=False
-        if collector_type == "Diamond":
-            diamond = True
-        if collector_type == "Ruby":
-            ruby = True
-        # Filter enabled collectibles
-        enabled_collectibles = [x for x in balls.values() if x.enabled]
-
-        if not enabled_collectibles:
+        if not countryball.is_tradeable:
             await interaction.response.send_message(
-                f"There are no collectibles registered in {settings.bot_name} yet.",
+                f"You cannot use this.", ephemeral=True
+            )
+            return
+        async for dupe in self.add_balls(interaction, [countryball]):
+            if dupe:
+                await interaction.response.send_message(
+                    f"You have already added this dragon ball!", ephemeral=True
+                )
+                return
+
+
+        try:
+            await interaction.response.send_message(
+                f"Added `{countryball.description(short=True, include_emoji=False, bot=self.bot)}`!",
                 ephemeral=True,
             )
+        except:
             return
 
-        # Sort collectibles by rarity in ascending order
-        sorted_collectibles = sorted(enabled_collectibles, key=lambda x: x.rarity)
-
-        entries = []
-        if diamond:
-            text0 = "Diamond"
-            shinytext = "✨Shinies"
-        elif ruby:
-            text0 = "Ruby"
-            shinytext = "Extra Amount"
-        else:
-            text0 = "Collector"
-            shinytext = "Amount"
-        for collectible in sorted_collectibles:
-            name = f"{collectible.country}"
-            emoji = self.bot.get_emoji(collectible.emoji_id)
-
-            if emoji:
-                emote = str(emoji)
-            else:
-                emote = "N/A"
-            if diamond:
-                rarity1 = int(int((dgradient*(collectible.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
-            elif ruby:
-                collector_number = int(int((gradient*(collectible.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
-                collector_extra = math.ceil(collector_number*1.5)
-                collector_total = collector_number + collector_extra
-                diamond_number = int(int((dgradient*(collectible.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
-                relicborne_number = math.ceil(diamond_number/1.5)
-                mythical_number = int(diamond_number/2)
-                specials_number = int(int((sgradient*(collectible.rarity-sT1Rarity) + sT1Req)/sRoundingOption)*sRoundingOption)
-            else:
-                rarity1 = int(int((gradient*(collectible.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
-            
-            if ruby:
-                if settings.bot_name == "dragonballdex":
-                    entry = (name, f"{emote}{shinytext} required: **{collector_extra}** (**{collector_total} total**)\nSpecials required: **{specials_number}** including: \n`1❇️`+`3⚔️`+`{mythical_number}🌌({mythical_number+1})`+`{relicborne_number}🌠({relicborne_number+1})`")
-                else:
-                    entry = (name, f"{emote}{shinytext} required: **{collector_extra}** (**{collector_total} total**)\nSpecials required: **{specials_number}** including: \n`1❇️`+`3⚔️`+`{mythical_number}🌌({mythical_number+1})`")
-            else:
-                entry = (name, f"{emote}{shinytext} required: {rarity1}")
-            entries.append(entry)
-        # This is the number of countryballs which are displayed at one page,
-        # you can change this, but keep in mind: discord has an embed size limit.
-        per_page = 10
-
-        source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
-        source.embed.description = (
-            f"__**{settings.bot_name} {text0} Card List**__"
-        )
-        if ruby:
-            if settings.bot_name == "dragonballdex":
-                source.embed.description += "\n-# Key:\n-# `1❇️`+`3⚔️`+`Extra🌌(total)`+`Extra🌠(total)`"
-            else:
-                source.embed.description += "\n-# Key:\n-# `1❇️`+`3⚔️`+`Extra🌌(total)`"
-        source.embed.colour = discord.Colour.from_rgb(190,100,190)
-        source.embed.set_author(
-            name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
-        )
-
-        pages = Pages(source=source, interaction=interaction, compact=True)
-        await pages.start(
-            ephemeral=True,
-        )
-
-    @ccadmin.command(name="check")
-    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
-    @app_commands.choices(
-        option=[
-            app_commands.Choice(name="Show all CCs", value="ALL"),
-            app_commands.Choice(name="Show only unmet CCs", value="UNMET"),
-            app_commands.Choice(name="Delete all unmet CCs", value="DELETE"), # must have full admin perm
-        ]
-    )
-    @app_commands.choices(
-        collector_type=[
-            app_commands.Choice(name="Collector", value="Collector"),
-            app_commands.Choice(name="Diamond", value="Diamond"),
-            app_commands.Choice(name="Emerald", value="Emerald"),
-            app_commands.Choice(name="Ruby", value="Ruby"),
-        ]
-    )
-    async def check(
-        self,
-        interaction: discord.Interaction["BallsDexBot"],
-        option: str,
-        collector_type: str,
-        countryball: BallEnabledTransform | None = None,
-        user: discord.User | None = None,
+    @app_commands.command()
+    async def remove(
+        self, interaction: discord.Interaction, countryball: BallInstanceTransform, special: SpecialEnabledTransform | None = None,
     ):
         """
-        Check for unmet Collector Cards
-        
+        Removes a countryball from wish.
+
         Parameters
         ----------
-        option: str
-            The type of operation you require
-        collector_type: str
-            The type of card you want to check
-        countryball: Ball | None
-        user: discord.User | None
+        countryball: Ball
+            The countryball you want to remove.
         """
-        if option == "DELETE":
-            fullperm = False
-            for i in settings.root_role_ids:
-                if interaction.guild.get_role(i) in interaction.user.roles:
-                    fullperm = True
-            if fullperm == False:
-                return await interaction.response.send_message(f"You do not have permission to delete {settings.plural_collectible_name}", ephemeral=True)
-            
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        if collector_type == "Diamond":
-            diamond = True
-        else:
-            diamond = False
-        collectorspecial = [x for x in specials.values() if x.name == collector_type][0]
-            
-        filters = {}
-        filters["special"] = collectorspecial
-        if countryball:
-            filters["ball"] = countryball
-        if user:
-            filters["player__discord_id"] = user.id
-
-        entries = []
-        unmetlist = []
-        
-        balls = await BallInstance.filter(**filters).prefetch_related(
-                        "player","special","ball"
-                    )
-        if collector_type == "Diamond" or collector_type == "Collector":
-            for ball in balls:
-                if ball.ball.enabled == False:
-                    continue
-                player = await self.bot.fetch_user(int(f"{ball.player}"))
-                checkfilter = {}
-                checkfilter["player__discord_id"] = int(f"{ball.player}")
-                checkfilter["ball"] = ball.ball
-                
-                if diamond:
-                    checkfilter["special"] = [x for x in specials.values() if x.name == "Shiny"][0]
-                    shinytext = " Shiny✨"
-                else:
-                    shinytext = ""
-                    
-                checkballs = await BallInstance.filter(**checkfilter).count()
-                if checkballs == 1:
-                    collectiblename = settings.collectible_name
-                else:
-                    collectiblename = settings.plural_collectible_name
-                meetcheck = (f"{player} has **{checkballs}**{shinytext} {ball.ball} {collectiblename}")
-                
-                if diamond:
-                    rarity2 = int(int((dgradient*(ball.ball.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
-                else:
-                    rarity2 = int(int((gradient*(ball.ball.rarity-T1Rarity) + T1Req)/RoundingOption)*RoundingOption)
-                    
-                if checkballs >= rarity2:
-                    meet = (f"**Enough to maintain ✅**\n---")
-                    if option == "ALL":
-                        entry = (ball.description(short=True, include_emoji=True, bot=self.bot), f"{player}({ball.player})\n{meetcheck}\n{meet}")
-                        entries.append(entry)
-                else:
-                    meet = (f"**Not enough to maintain** ⚠️\n---")
-                    entry = (ball.description(short=True, include_emoji=True, bot=self.bot), f"{player}({ball.player})\n{meetcheck}\n{meet}")
-                    entries.append(entry)
-                    unmetlist.append(ball)
-        else:
-            for ball in balls:
-                if ball.ball.enabled == False:
-                    continue
-                player = await self.bot.fetch_user(int(f"{ball.player}"))
-                if collector_type == "Emerald":
-                    answerreply = await self.emerald(player, ball.ball)
-                else:
-                    answerreply = await self.ruby(player, ball.ball)
-                if answerreply == "passed":
-                    meet = (f"**Enough to maintain ✅**\n---")
-                    if option == "ALL":
-                        entry = (ball.description(short=True, include_emoji=True, bot=self.bot), f"{player}({ball.player})\n{meet}")
-                        entries.append(entry)
-                else:
-                    meet = (f"**Not enough to maintain** ⚠️\n---")
-                    entry = (ball.description(short=True, include_emoji=True, bot=self.bot), f"{player}({ball.player})\n{meet}")
-                    entries.append(entry)
-                    unmetlist.append(ball)
-        if collector_type == "Diamond":
-            text0 = "diamond"
-            shiny0 = " shiny"
-        elif collector_type == "Collector":
-            text0 = "collector"
-            shiny0 = ""
-        elif collector_type == "Emerald":
-            text0 = "emerald"
-            shiny0 = " special"
-        else:
-            text0 = "ruby"
-            shiny0 = " characters and/or special"
-            
-        if len(entries) == 0:
-            if countryball:
-                ctext = (f" {countryball}")
-            else:
-                ctext = ("")
-            if option == "ALL":
-                utext = ("")
-            else:
-                utext = (" unmet")
-            if user == None:
-                return await interaction.followup.send(f"There are no{utext}{ctext} {text0} cards!")
-            else:
-                return await interaction.followup.send(f"{user} has no{utext}{ctext} {text0} cards!")
-            
-        if option == "DELETE":
-            unmetballs = ""
-            for b in unmetlist:
-                player = await self.bot.fetch_user(int(f"{b.player}"))
-                unmetballs+=(f"{player}'s {b}\n")
-            with open("unmetccs.txt", "w") as file:
-                file.write(unmetballs)
-            with open("unmetccs.txt", "rb") as file:
-                await interaction.followup.send(f"The following {text0} cards will be deleted for no longer having enough{shiny0} {settings.plural_collectible_name} each to maintain them:",file=discord.File(file, "unmetccs.txt"),ephemeral=True)
-            view = ConfirmChoiceView(
-                interaction,
-                accept_message=f"Confirmed, deleting...",
-                cancel_message="Request cancelled.",
-            )
-            unmetcount = len(unmetlist)
-            await interaction.followup.send(f"Are you sure you want to delete {unmetcount} {text0} card(s)?\nThis cannot be undone.",view=view,ephemeral=True)
-            await view.wait()
-            if not view.value:
+        async for not_in_battle in self.remove_balls(interaction, [countryball]):
+            if not_in_battle:
+                await interaction.response.send_message(
+                    f"You cannot remove what is not in your wish!", ephemeral=True
+                )
                 return
-            for b in unmetlist:
-                player = await self.bot.fetch_user(int(f"{b.player}"))
-                try:
-                    await player.send(f"Your {b.ball} {text0} card has been erased by zeno because you no longer have enough{shiny0} {settings.plural_collectible_name} to maintain it.")
-                except:
-                    pass
-                await b.delete()
-            if unmetcount == 1:
-                collectiblename1 = settings.collectible_name
-            else:
-                collectiblename1 = settings.plural_collectible_name
-            await interaction.followup.send(f"{unmetcount} {text0} card {collectiblename1} has been deleted successfully.",ephemeral=True)
-            await log_action(
-                f"{interaction.user} has deleted {unmetcount} {text0} card {collectiblename1} for no longer having enough{shiny0} {settings.plural_collectible_name} each to maintain them.",
-                self.bot,
+
+
+        try:
+            await interaction.response.send_message(
+                f"Removed `{countryball.description(short=True, include_emoji=False, bot=self.bot)}`!",
+                ephemeral=True,
+            )
+        except:
+            return
+    
+    @app_commands.command()
+    async def cancel(
+        self, interaction: discord.Interaction
+    ):
+        """
+        Cancels the wish you are in.
+
+        Parameters
+        ----------
+        countryball: Ball
+            The countryball you want to remove.
+        """
+        guild_battle = fetch_battle(interaction.user)
+
+        if guild_battle is None:
+            await interaction.response.send_message(
+                "You aren't wishing!", ephemeral=True
             )
             return
+
+        try:
+            await interaction.response.defer(ephemeral=True, thinking=True)
+        except discord.errors.InteractionResponded:
+            pass
+
+        battles.pop(battles.index(guild_battle))
+        for bround in self.battlerounds:
+            if interaction.user.id in bround:
+                self.battlerounds.remove(bround)
+                break
+
+        await interaction.followup.send(f"Your current wish has been frozen and cancelled.",ephemeral=True)
+
+    @admin.command(name="clear")
+    @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
+    async def clear(
+        self, interaction: discord.Interaction
+    ):
+        """
+        Cancels all wishes.
+
+        Parameters
+        ----------
+        countryball: Ball
+            The countryball you want to remove.
+        """
+        try:
+            await interaction.response.defer(ephemeral=True, thinking=True)
+        except discord.errors.InteractionResponded:
+            pass
+
+        battles.clear()
+        self.battlerounds = []
+
+        await interaction.followup.send(f"All wishes have been reset.",ephemeral=True)
         
-        else:
-            per_page = 10
-
-            source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
-            source.embed.description = (
-                f"__**{settings.bot_name} {collector_type} Card Check**__"
-            )
-            source.embed.colour = discord.Colour.from_rgb(190,100,190)
-
-            pages = Pages(source=source, interaction=interaction, compact=True)
-            await pages.start(ephemeral=True)
