@@ -44,9 +44,9 @@ if settings.bot_name == "dragonballdex":
     # (Which was originally inputted into admin panel or /admin balls create)
     CommonRarity = 62
 else:
-    T1Req = 30
+    T1Req = 25
     T1Rarity = 1
-    CommonReq = 300
+    CommonReq = 200
     CommonRarity = 233
 
 # ROUNDING OPTION FOR AMOUNTS NEEDED, WHAT YOU WOULD LIKE EVERYTHING TO ROUNDED TO
@@ -81,7 +81,7 @@ if settings.bot_name == "dragonballdex":
 else:
     sT1Req = 25
     sT1Rarity = 1
-    sCommonReq = 100
+    sCommonReq = 80
     sCommonRarity = 233
 sRoundingOption = 5
 
