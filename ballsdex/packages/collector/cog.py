@@ -150,7 +150,11 @@ class Collector(commands.GroupCog):
         diamondsubtractor = int(int((dgradient*(countryball.rarity-dT1Rarity) + dT1Req)/dRoundingOption)*dRoundingOption)
         passcount = await BallInstance.filter(**cfilters).count() - diamondsubtractor
         if passcount < extrashinies and extrashinies != 0:
-            missinglist.append(f"{extrashinies} Extra Shiny")
+            if passcount < 0:
+                passprogression = 0
+            else:
+                passprogression = passcount
+            missinglist.append(f"{passprogression}/{extrashinies} Extra Shiny")
             passed = False
             extraextrashinies = 0
         else:
@@ -241,7 +245,7 @@ class Collector(commands.GroupCog):
         bossfilters["player__discord_id"] = user.id
         bosscount = await BallInstance.filter(**bossfilters).count()
         if bosscount < 3:
-            missinglistr.append("`3 Boss`")
+            missinglistr.append(f"`{bosscount}/3 Boss`")
             passedr = False
         mythicalspecial = [x for x in specials.values() if x.name == "Mythical"][0]
         mythicalfilters = {}
@@ -250,7 +254,11 @@ class Collector(commands.GroupCog):
         mythicalfilters["player__discord_id"] = user.id
         mythicalcount = await BallInstance.filter(**mythicalfilters).count()
         if mythicalcount < 1 + mythical_number:
-            missinglistr.append(f"`{mythical_number} Extra Mythical`")
+            if mythicalcount == 0:
+                mythicalprogression = 0
+            else:
+                mythicalprogression = mythicalcount - 1
+            missinglistr.append(f"`{mythicalprogression}/{mythical_number} Extra Mythical`")
             passedr = False
         if settings.bot_name == "dragonballdex":
             relicbornespecial = [x for x in specials.values() if x.name == "Relicborne"][0]
@@ -260,7 +268,11 @@ class Collector(commands.GroupCog):
             relicbornefilters["player__discord_id"] = user.id
             relicbornecount = await BallInstance.filter(**relicbornefilters).count()
             if relicbornecount < 1 + relicborne_number:
-                missinglistr.append(f"`{relicborne_number} Extra Relicborne`")
+                if relicbornecount == 0:
+                    relicborneprogression = 0
+                else:
+                    relicborneprogression = relicbornecount - 1
+                missinglistr.append(f"`{relicborneprogression}/{relicborne_number} Extra Relicborne`")
                 passedr = False
         if passedr:
             replyruby = "passed"
