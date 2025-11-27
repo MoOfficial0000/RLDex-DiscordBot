@@ -56,6 +56,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("ballsdex.packages.adminplus.cog")
 FILENAME_RE = re.compile(r"^(.+)(\.\S+)$")
 
+
 @app_commands.guilds(*settings.admin_guild_ids)
 @app_commands.default_permissions(administrator=True)
 class Adminplus(commands.GroupCog):
@@ -198,6 +199,7 @@ class Adminplus(commands.GroupCog):
         await pages.start()
 
 
+
     @app_commands.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids)
     async def special_rarity(self, interaction: discord.Interaction, countryball: BallEnabledTransform | None = None,):
@@ -210,11 +212,12 @@ class Adminplus(commands.GroupCog):
         countryball: Ball | None
             Choose to filter by a specific countryball.
         """
+        await interaction.response.defer(ephemeral=True, thinking=True)
         # Filter enabled collectibles
         events = [x for x in specials.values()]
 
         if not events:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"There are no events registered in {settings.bot_name} yet.",
                 ephemeral=True,
             )
@@ -249,7 +252,7 @@ class Adminplus(commands.GroupCog):
             entries.append(entry)
         # This is the number of countryballs who are displayed at one page,
         # you can change this, but keep in mind: discord has an embed size limit.
-        per_page = 10
+        per_page = 5
 
         source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
         source.embed.description = (
@@ -472,7 +475,7 @@ class Adminplus(commands.GroupCog):
 
         # This is the number of countryballs who are displayed at one page,
         # you can change this, but keep in mind: discord has an embed size limit.
-        per_page = 10
+        per_page = 5
         special_str = f" ({special.name})" if special else ""
         if nothingcheck == "":
             if user:
