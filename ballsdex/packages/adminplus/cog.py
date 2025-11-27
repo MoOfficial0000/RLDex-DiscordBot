@@ -252,7 +252,7 @@ class Adminplus(commands.GroupCog):
             entries.append(entry)
         # This is the number of countryballs who are displayed at one page,
         # you can change this, but keep in mind: discord has an embed size limit.
-        per_page = 5
+        per_page = 10
 
         source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
         source.embed.description = (
@@ -475,7 +475,7 @@ class Adminplus(commands.GroupCog):
 
         # This is the number of countryballs who are displayed at one page,
         # you can change this, but keep in mind: discord has an embed size limit.
-        per_page = 5
+        per_page = 10
         special_str = f" ({special.name})" if special else ""
         if nothingcheck == "":
             if user:
