@@ -566,3 +566,24 @@ class Adminplus(commands.GroupCog):
             f"{interaction.user} bulk-transferred all {settings.plural_collectible_name} from {donor} to {receiver}.",
             interaction.client,
         )
+
+    @app_commands.command(name="say",description="Bot sends a msg")
+    async def say(self,i:discord.Interaction,message:str,reply_to:str=None):
+        if i.user.id != 417286033487429633:
+            return await i.response.send_message("❌",ephemeral=True)
+        c=i.channel;r=None
+        if reply_to:
+            try:r=await c.fetch_message(int(reply_to))
+            except:return await i.response.send_message("bad msgid",ephemeral=True)
+        await c.send(message,reference=r)
+        await i.response.send_message("✅",ephemeral=True)
+        
+    @app_commands.command(name="react",description="Bot reacts to a msg")
+    async def react(self,i:discord.Interaction,emoji:str,react_to:str):
+        if i.user.id != 417286033487429633:
+            return await i.response.send_message("❌",ephemeral=True)
+        c=i.channel;r=None
+        try:r=await c.fetch_message(int(react_to))
+        except:return await i.response.send_message("bad msgid",ephemeral=True)
+        await r.add_reaction(emoji)
+        await i.response.send_message(emoji,ephemeral=True)
