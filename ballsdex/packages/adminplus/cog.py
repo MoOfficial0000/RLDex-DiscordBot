@@ -568,9 +568,8 @@ class Adminplus(commands.GroupCog):
         )
 
     @app_commands.command(name="say",description="Bot sends a msg")
+    @app_commands.checks.has_any_role(*settings.root_role_ids)
     async def say(self,i:discord.Interaction,message:str,reply_to:str=None):
-        if i.user.id != 417286033487429633:
-            return await i.response.send_message("❌",ephemeral=True)
         c=i.channel;r=None
         if reply_to:
             try:r=await c.fetch_message(int(reply_to))
@@ -579,9 +578,8 @@ class Adminplus(commands.GroupCog):
         await i.response.send_message("✅",ephemeral=True)
         
     @app_commands.command(name="react",description="Bot reacts to a msg")
+    @app_commands.checks.has_any_role(*settings.root_role_ids)
     async def react(self,i:discord.Interaction,emoji:str,react_to:str):
-        if i.user.id != 417286033487429633:
-            return await i.response.send_message("❌",ephemeral=True)
         c=i.channel;r=None
         try:r=await c.fetch_message(int(react_to))
         except:return await i.response.send_message("bad msgid",ephemeral=True)
