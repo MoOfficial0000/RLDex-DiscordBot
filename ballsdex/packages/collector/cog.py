@@ -46,7 +46,7 @@ if settings.bot_name == "dragonballdex":
 else:
     T1Req = 30
     T1Rarity = 1
-    CommonReq = 500
+    CommonReq = 300
     CommonRarity = 233
 
 # ROUNDING OPTION FOR AMOUNTS NEEDED, WHAT YOU WOULD LIKE EVERYTHING TO ROUNDED TO
@@ -69,10 +69,10 @@ if settings.bot_name == "dragonballdex":
 else:
     dT1Req = 3
     dT1Rarity = 1
-    dCommonReq = 10
+    dCommonReq = 8
     dCommonRarity = 233
 dRoundingOption = 1
-
+#no of specials req
 if settings.bot_name == "dragonballdex":
     sT1Req = 27.5 # this is so from t1 it's 25 and from t3.5 it becomes 30
     sT1Rarity = 1
@@ -81,7 +81,7 @@ if settings.bot_name == "dragonballdex":
 else:
     sT1Req = 25
     sT1Rarity = 1
-    sCommonReq = 200
+    sCommonReq = 100
     sCommonRarity = 233
 sRoundingOption = 5
 
@@ -429,7 +429,6 @@ class Collector(commands.GroupCog):
             )
             
     @app_commands.command()
-    @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
     @app_commands.choices(
         collector_type=[
             app_commands.Choice(name="Collector", value="Collector"),
