@@ -4,13 +4,15 @@ import random
 import re
 import json
 import os
+import io
+import tempfile
 import traceback
 
 from datetime import datetime, timedelta, timezone
 from ballsdex.packages.countryballs.countryball import BallSpawnView
 
 from discord.utils import get
-from discord import app_commands
+from discord import app_commands, File
 from discord.ext import commands
 from tortoise.exceptions import DoesNotExist
 from tortoise.expressions import Q
@@ -31,47 +33,53 @@ from ballsdex.core.utils.transformers import (
 )
 
 from typing import TYPE_CHECKING
+from collections import Counter
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
 
-log = logging.getLogger("ballsdex.packages.gaPacks")
+log = logging.getLogger("ballsdex.packages.extraPacks")
 
 TIMEZONE_SETTING = timezone(timedelta(hours=0))
 
 if settings.bot_name == "dragonballdex":
     dropballs = []
     weights = []
+    dropzenis = []
+    zweights = [1000,500,200,100,50,20,10,5,2]
 
     # Add E balls
     for i in range(1, 8):
         dropballs.append(211+i)
-        weights.append(10)
+        weights.append(15)
 
     # Add N balls
     for i in range(1, 8):
         dropballs.append(218+i)
-        weights.append(10)
+        weights.append(15)
 
     # Add C balls
     for i in range(1, 3):
         dropballs.append(225+i)
-        weights.append(5)
+        weights.append(7)
 
     # Add D balls
     for i in range(1, 4):
         dropballs.append(227+i)
-        weights.append(5)
+        weights.append(7)
 
     # Add U balls
     for i in range(1, 8):
-        dropballs.append(482+i)
-        weights.append(5)
+        dropballs.append(482+i) #482
+        weights.append(6)
 
     # Add S balls
     for i in range(1, 8):
         dropballs.append(230+i)
         weights.append(2)
+
+    for i in range(1, 10):
+        dropzenis.append(495+i) #495
 
 else:
     dropballs = [
@@ -84,15 +92,15 @@ else:
     ]
 
     weights = [
-        50,
-        25,
+        45,
+        30,
         14,
         7,
         3,
         1
     ]
 
-class gaPacks(commands.Cog):
+class extraPacks(commands.Cog):
     """
     Simple extra commands.
     """
@@ -116,49 +124,57 @@ class gaPacks(commands.Cog):
             return [x for x in balls.values() if x.id==dball][0]
         else:
             return [x for x in balls.values() if x.country==dball][0]
+
+    def get_random_zeni(self):
+        dzeni = random.choices(dropzenis, weights=zweights, k=1)[0]
+        return [x for x in balls.values() if x.id==dzeni][0]
+
+    def get_random_relic(self):
+        return random.randint(321,324) #321,324
     
     def get_drop_tables(self):
         return {
             "Sport Drop": {"None": 100},
 
             "Special Drop": {
-                color: 9.090909 for color in [
+                **{color: 0.04545 for color in [
                     "Sky Blue", "Saffron", "Purple", "Pink", "Orange",
                     "Lime", "Grey", "Forest Green", "Crimson",
                     "Cobalt", "Burnt Sienna"
-                ]
+                ]},
+                "None": 0.5
             },
 
             "Deluxe Drop": {
-                **{color: 8.033333 for color in [
+                **{color: 0.0835 for color in [
                     "Sky Blue", "Saffron", "Purple", "Pink", "Orange",
                     "Lime", "Grey", "Forest Green", "Crimson",
                     "Cobalt", "Burnt Sienna"
                 ]},
-                "Black": 11.633333
+                "Black": 0.0811
             },
 
             "Import Drop": {
-                "Gold": 8.184569,
-                "Titanium White": 8.184569,
-                **{color: 6.135905 for color in [
+                **{color: 0.05874 for color in [
                     "Sky Blue", "Saffron", "Purple", "Pink", "Orange",
                     "Lime", "Grey", "Forest Green", "Crimson",
                     "Cobalt", "Burnt Sienna"
                 ]},
-                "Black": 16.135905
+                "Black": 0.15410,
+                "Gold": 0.09980,
+                "Titanium White": 0.09980
             },
 
             "Exotic Drop": {
-                "Gold": 38.459776,
-                "Titanium White": 38.459776,
-                "Shiny": 19.229888,
-                "Mythical": 3.850561
+                "Shiny": 0.2274,
+                "Gold": 0.3636,
+                "Titanium White": 0.3636,
+                "Mythical": 0.0455
             },
 
             "Black Market Drop": {
-                "Shiny": 83.316783,
-                "Mythical": 16.683217
+                "Shiny": 0.8332,
+                "Mythical": 0.1668
             }
         }
 
@@ -195,8 +211,30 @@ class gaPacks(commands.Cog):
         )
 
     async def handle_relic_drop(self, interaction, drop, drop_type, emoji):
-        relic_id = random.randint(321, 324)
+        relic_id = self.get_random_relic()
         newball = next(b for b in balls.values() if b.id == relic_id)
+
+        drop.ball = newball
+        await drop.save()
+
+        content, file, view = await drop.prepare_for_message(interaction)
+        file.filename = "drop_card.png"
+        newballdesc = drop.description(short=True, include_emoji=True, bot=self.bot)
+
+        embed = discord.Embed(
+            title=f"{drop_type} opened!",
+            description=f"You opened your drop and received:\n**{newballdesc}**",
+            color=discord.Color.yellow()
+        )
+        embed.set_image(url="attachment://drop_card.png")
+
+        if emoji:
+            embed.set_thumbnail(url=emoji.url)
+
+        await interaction.followup.send(embed=embed, file=file)
+
+    async def handle_zeni_drop(self, interaction, drop, drop_type, emoji):
+        newball = self.get_random_zeni()
 
         drop.ball = newball
         await drop.save()
@@ -344,6 +382,28 @@ class gaPacks(commands.Cog):
         comp_percentage = round(len(owned_countryballs) / len(bot_countryballs) * 100, 1)
 
         return [comp_percentage,lentrade_partners]
+
+    
+    async def bulk_list_txt(self, interaction, title, items, description):
+        # ----- Embed that just mentions the file -----
+        embed = discord.Embed(title=title, description=description)
+
+        # ----- Build the .txt file in memory -----
+        txt_data = "\n".join(items)
+        buffer = io.StringIO(txt_data)
+
+        if settings.bot_name == "dragonballdex":
+            emoji = "https://cdn.discordapp.com/emojis/1445975768080449608.png"
+        else:
+            emoji = "https://cdn.discordapp.com/emojis/1443438061844168724.png"
+
+        if emoji:
+                embed.set_thumbnail(url=emoji)
+
+        # ----- Send message with embed + file -----
+        await interaction.followup.send(embed=embed, file=File(buffer, filename="openedbulk.txt"))
+
+    
     
     @app_commands.command()
     @app_commands.checks.cooldown(1, 10, key=lambda i: i.user.id)
@@ -457,7 +517,7 @@ class gaPacks(commands.Cog):
             await interaction.followup.send(
                 f":warning: You don't meet all the requirements for daily and hourly commands! :warning:\n\n"
                 f"Requirements:\n"
-                f"10% self-caught completion {falsecheck(compreq)}\n-# (You currently have **{comp_percentage}%**)\n"
+                f"Minimum 10% self-caught completion {falsecheck(compreq)}\n-# (You currently have **{comp_percentage}%**)\n"
                 f"At least 10 users traded with {falsecheck(tradereq)}\n-# (You currently have **{lentrade_partners}**)"
                 )
             return
@@ -486,17 +546,18 @@ class gaPacks(commands.Cog):
         try:
             recievedtext = ""
             if settings.bot_name == "dragonballdex":
-                ball = [x for x in balls.values() if x.country == "Relic Drop"][0]
-                instance = await BallInstance.create(
-                    ball=ball,
-                    player=player,
-                    special=None,
-                    attack_bonus=0,
-                    health_bonus=0,
-                )
-                recievedtext = f"\n**{ball.country}**"
-                emojinourl = self.bot.get_emoji(ball.emoji_id)
-                emoji = emojinourl.url
+                for i in range(3):
+                    relicorzeni = "Zeni Drop" if random.random() < 0.75 else "Relic Drop"
+                    ball = [x for x in balls.values() if x.country == relicorzeni][0]
+                    instance = await BallInstance.create(
+                        ball=ball,
+                        player=player,
+                        special=None,
+                        attack_bonus=0,
+                        health_bonus=0,
+                    )
+                    recievedtext += f"\n**{ball.country}**"
+                emoji = "https://cdn.discordapp.com/emojis/1445975768080449608.png"
             else:
                 for i in range(5):
                     ball = self.get_random_ball()
@@ -508,7 +569,7 @@ class gaPacks(commands.Cog):
                         health_bonus=0,
                     )
                     recievedtext += f"\n**{ball.country}**"
-                    emoji = "https://cdn.discordapp.com/emojis/1443438061844168724.png"
+                emoji = "https://cdn.discordapp.com/emojis/1443438061844168724.png"
             
             self.daily_claims[user_id] = now
             self.save_daily_claims()
@@ -646,9 +707,9 @@ class gaPacks(commands.Cog):
         drop_type = ball.country
 
         # DragonBallDex relic validation
-        if settings.bot_name == "dragonballdex" and drop_type != "Relic Drop":
+        if settings.bot_name == "dragonballdex" and drop_type not in ("Relic Drop","Zeni Drop"):
             return await interaction.response.send_message(
-                "You must select a Relic Drop!",
+                "You must select a valid Drop!",
                 ephemeral=True
             )
 
@@ -672,10 +733,120 @@ class gaPacks(commands.Cog):
         # 3. Execute correct drop handler
         # -----------------------------------
         if settings.bot_name == "dragonballdex":
-            await self.handle_relic_drop(interaction, drop, drop_type, emoji)
+            if drop_type == "Relic Drop":
+                await self.handle_relic_drop(interaction, drop, drop_type, emoji)
+            else:
+                await self.handle_zeni_drop(interaction, drop, drop_type, emoji)
         else:
             await self.handle_standard_drop(interaction, drop, drop_type, emoji)
 
-            
-            
+    @drop.command(name="bulk_open")
+    @app_commands.checks.cooldown(1, 120, key=lambda i: i.user.id)
+    async def bulk_open(self, interaction: discord.Interaction):
+        """Bulk open all your drops."""
+        await interaction.response.defer(thinking=True)
+        fulldrops = []
+        dropprocess = []
+        dropdescription = f"You recieved:\n"
+        lockeddrops = 0
+        if settings.bot_name == "dragonballdex":
+            dropnames = ["Relic Drop","Zeni Drop"]
+            totalzeni = 0
+            dbrelics = []
+        else:
+            dropnames = ["Sport Drop","Special Drop","Deluxe Drop","Import Drop","Exotic Drop","Black Market Drop"]
+            rlspecials = []
+        for dropname in dropnames:
+            drfilters = {}
+            drfilters["ball"] = [x for x in balls.values() if x.country == dropname][0]
+            drfilters["player__discord_id"] = interaction.user.id
+            fulldrops += await BallInstance.filter(**drfilters).prefetch_related("ball")
+        numberofdrops = len(fulldrops)
+        if numberofdrops < 2:
+            await interaction.followup.send("You need to have at least 2 drops to use `/drop bulk_open`")
+            return
+        for drop in fulldrops:
+            if await drop.is_locked():
+                dropdesc = drop.description(short=True, include_emoji=False, bot=self.bot)
+                numberofdrops -= 1
+                lockeddrops += 1
+                dropprocess.append(f"{dropdesc} is currently locked for a trade.")
+                continue
+            dropcountry = drop.ball.country
+            newcountry = ""
+            if dropcountry == "Relic Drop":
+                relic_id = self.get_random_relic()
+                newball = next(b for b in balls.values() if b.id == relic_id)
+                drop.ball = newball
+                await drop.save()
+                newcountry = drop.ball.country
+                dbrelics.append(newcountry)
+            elif dropcountry == "Zeni Drop":
+                newball = self.get_random_zeni()
+                drop.ball = newball
+                await drop.save()
+                newcountry = drop.ball.country
+                totalzeni += drop.ball.health
+            else:
+                drop_tables = self.get_drop_tables()
+                special = self.roll_special(drop_tables[dropcountry])
+                instance = await self.spawn_new_ball(interaction.user, special)
+                await drop.delete()
+                if special == None:
+                    specialname = "None"
+                    specialemoji = ""
+                else:
+                    specialname = special.name
+                    specialemoji = f"{special.emoji} "
+                newcountry = f"{specialemoji}{instance.ball}"
+                rlspecials.append(specialname)
+            dropprocess.append(f"{dropcountry} ---> {newcountry}")
+        droptitle = f"{numberofdrops} Drops Opened!"
+        if settings.bot_name == "dragonballdex":
+            reliccounts = Counter(dbrelics)
+            relic_names = [
+                ("Relic of Divinity","<:RelicOfDivinity:1446356216409489561>"),
+                ("Relic of Monarchy","<:RelicOfMonarchy:1446356217537757276>"),
+                ("Relic of Destruction","<:RelicOfDestruction:1446356227218083850>"),
+                ("Relic of Tyranny","<:RelicOfTyranny:1446356219106431067>"),
+            ]
+            for relic, emoji in relic_names:
+                count = reliccounts[relic]
+                if count > 0:
+                    dropdescription += f"**{count}× {emoji} {relic}**\n"
+            if totalzeni > 0:
+                dropdescription += f"**Total Zeni: {totalzeni}**\n"
+        else:
+            specialcounts = Counter(rlspecials)
+            special_names = [
+                ("Sky Blue", "🩵"),
+                ("Saffron", "💛"),
+                ("Purple", "🟪"),
+                ("Pink", "🩷"),
+                ("Orange", "🟧"),
+                ("Lime", "💚"),
+                ("Grey", "🩶"),
+                ("Forest Green", "🟩"),
+                ("Crimson", "🟥"),
+                ("Cobalt", "🟦"),
+                ("Burnt Sienna", "🟫"),
+                ("Black", "⬛"),
+                ("Titanium White", "⬜"),
+                ("Gold", "🟨"),
+                ("Shiny", "✨"),
+                ("Mythical", "🌌"),
+            ]
+            for name, emoji in special_names:
+                count = specialcounts[name]
+                if count > 0:
+                    dropdescription += f"**{count}× {emoji} {name}**\n"
+            nonecount = specialcounts["None"]
+            if nonecount > 0:
+                dropdescription += f"**{nonecount}× Unpainted**\n"
+        if lockeddrops > 0:
+            dropdescription += f"*{lockeddrops} drop(s) failed to open. (Locked for trade)*"
+        await self.bulk_list_txt(interaction,droptitle,dropprocess,dropdescription)
+        
+        
+
 
