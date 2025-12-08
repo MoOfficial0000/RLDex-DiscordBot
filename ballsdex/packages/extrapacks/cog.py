@@ -43,6 +43,7 @@ log = logging.getLogger("ballsdex.packages.extraPacks")
 TIMEZONE_SETTING = timezone(timedelta(hours=0))
 
 if settings.bot_name == "dragonballdex":
+    currencyname = "Zeni"
     dropballs = []
     weights = []
     dropzenis = []
@@ -70,7 +71,7 @@ if settings.bot_name == "dragonballdex":
 
     # Add U balls
     for i in range(1, 8):
-        dropballs.append(482+i) #482
+        dropballs.append(482+i) #482 main bot 239 test bot
         weights.append(6)
 
     # Add S balls
@@ -79,9 +80,13 @@ if settings.bot_name == "dragonballdex":
         weights.append(2)
 
     for i in range(1, 10):
-        dropzenis.append(495+i) #495
+        dropzenis.append(495+i) #495 main bot 195 test bot
 
 else:
+    currencyname = "Credits"
+    dropcredits = []
+    cweights = [1000,500,200,100,50,20,10,5,2]
+    CREDITS_NOTES = [1,2,5,10,20,50,100,200,500]
     dropballs = [
         "Sport Drop",        # 45%
         "Special Drop",      # 30%
@@ -99,6 +104,16 @@ else:
         3,
         1
     ]
+
+    currencyname = "Credits"
+    for i in CREDITS_NOTES:
+        if i == 1:
+            currencycardname = f"1 Credit"
+        else:
+            currencycardname = f"{i} Credits"
+        currencycard = [x for x in balls.values() if x.country==currencycardname][0]
+        dropcredits.append(currencycard.id)
+    
 
 class extraPacks(commands.Cog):
     """
@@ -126,11 +141,14 @@ class extraPacks(commands.Cog):
             return [x for x in balls.values() if x.country==dball][0]
 
     def get_random_zeni(self):
-        dzeni = random.choices(dropzenis, weights=zweights, k=1)[0]
+        if settings.bot_name == "dragonballdex":
+            dzeni = random.choices(dropzenis, weights=zweights, k=1)[0]
+        else:
+            dzeni = random.choices(dropcredits, weights=cweights, k=1)[0]
         return [x for x in balls.values() if x.id==dzeni][0]
 
     def get_random_relic(self):
-        return random.randint(321,324) #321,324
+        return random.randint(321,324) #321,324 main bot 1,4 test bot
     
     def get_drop_tables(self):
         return {
@@ -395,7 +413,7 @@ class extraPacks(commands.Cog):
         if settings.bot_name == "dragonballdex":
             emoji = "https://cdn.discordapp.com/emojis/1445975768080449608.png"
         else:
-            emoji = "https://cdn.discordapp.com/emojis/1443438061844168724.png"
+            emoji = "https://cdn.discordapp.com/emojis/1447386002912968825.png"
 
         if emoji:
                 embed.set_thumbnail(url=emoji)
@@ -559,8 +577,8 @@ class extraPacks(commands.Cog):
                     recievedtext += f"\n**{ball.country}**"
                 emoji = "https://cdn.discordapp.com/emojis/1445975768080449608.png"
             else:
-                for i in range(5):
-                    ball = self.get_random_ball()
+                for i in range(3):
+                    ball = [x for x in balls.values() if x.country == "Credits Drop"][0] if random.random() < 0.75 else self.get_random_ball()
                     instance = await BallInstance.create(
                         ball=ball,
                         player=player,
@@ -569,7 +587,7 @@ class extraPacks(commands.Cog):
                         health_bonus=0,
                     )
                     recievedtext += f"\n**{ball.country}**"
-                emoji = "https://cdn.discordapp.com/emojis/1443438061844168724.png"
+                emoji = "https://cdn.discordapp.com/emojis/1447386002912968825.png"
             
             self.daily_claims[user_id] = now
             self.save_daily_claims()
@@ -716,7 +734,7 @@ class extraPacks(commands.Cog):
         # Standard drop type validity check
         if settings.bot_name != "dragonballdex":
             drop_tables = self.get_drop_tables()
-            if drop_type not in drop_tables:
+            if drop_type not in drop_tables and drop_type != "Credits Drop":
                 return await interaction.response.send_message(
                     "You must select a valid drop!",
                     ephemeral=True
@@ -738,7 +756,10 @@ class extraPacks(commands.Cog):
             else:
                 await self.handle_zeni_drop(interaction, drop, drop_type, emoji)
         else:
-            await self.handle_standard_drop(interaction, drop, drop_type, emoji)
+            if drop_type != "Credits Drop":
+                await self.handle_standard_drop(interaction, drop, drop_type, emoji)
+            else:
+                await self.handle_zeni_drop(interaction, drop, drop_type, emoji)
 
     @drop.command(name="bulk_open")
     @app_commands.checks.cooldown(1, 120, key=lambda i: i.user.id)
@@ -749,12 +770,12 @@ class extraPacks(commands.Cog):
         dropprocess = []
         dropdescription = f"You recieved:\n"
         lockeddrops = 0
+        totalzeni = 0
         if settings.bot_name == "dragonballdex":
             dropnames = ["Relic Drop","Zeni Drop"]
-            totalzeni = 0
             dbrelics = []
         else:
-            dropnames = ["Sport Drop","Special Drop","Deluxe Drop","Import Drop","Exotic Drop","Black Market Drop"]
+            dropnames = ["Sport Drop","Special Drop","Deluxe Drop","Import Drop","Exotic Drop","Black Market Drop","Credits Drop"]
             rlspecials = []
         for dropname in dropnames:
             drfilters = {}
@@ -781,7 +802,7 @@ class extraPacks(commands.Cog):
                 await drop.save()
                 newcountry = drop.ball.country
                 dbrelics.append(newcountry)
-            elif dropcountry == "Zeni Drop":
+            elif dropcountry == "Zeni Drop" or dropcountry == "Credits Drop":
                 newball = self.get_random_zeni()
                 drop.ball = newball
                 await drop.save()
@@ -814,8 +835,6 @@ class extraPacks(commands.Cog):
                 count = reliccounts[relic]
                 if count > 0:
                     dropdescription += f"**{count}× {emoji} {relic}**\n"
-            if totalzeni > 0:
-                dropdescription += f"**Total Zeni: {totalzeni}**\n"
         else:
             specialcounts = Counter(rlspecials)
             special_names = [
@@ -843,6 +862,8 @@ class extraPacks(commands.Cog):
             nonecount = specialcounts["None"]
             if nonecount > 0:
                 dropdescription += f"**{nonecount}× Unpainted**\n"
+        if totalzeni > 0:
+            dropdescription += f"**Total {currencyname}: {totalzeni}**\n"
         if lockeddrops > 0:
             dropdescription += f"*{lockeddrops} drop(s) failed to open. (Locked for trade)*"
         await self.bulk_list_txt(interaction,droptitle,dropprocess,dropdescription)
