@@ -14,7 +14,6 @@ from discord.utils import format_dt
 from tortoise.exceptions import BaseORMException, DoesNotExist, IntegrityError
 from tortoise.expressions import Q
 from ballsdex.core.models import PrivacyPolicy
-from ballsdex.core.utils.buttons import ConfirmChoiceView
 from ballsdex.core.models import Player as PlayerModel
 from ballsdex.core.bot import BallsDexBot
 from ballsdex.packages.admin.balls import Balls
