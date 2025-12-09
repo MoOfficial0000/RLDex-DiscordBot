@@ -18,6 +18,7 @@ from datetime import timedelta
 from ballsdex.settings import settings
 from ballsdex.core.utils.paginator import FieldPageSource, Pages
 from ballsdex.core.utils.buttons import ConfirmChoiceView
+from ballsdex.core.utils.logging import log_action
 from ballsdex.settings import settings
 from ballsdex.core.models import Player, BallInstance, specials, Trade, balls
 from ballsdex.core.utils.transformers import (
@@ -294,7 +295,7 @@ class currency(commands.Cog):
                     return False
                 self.permit_users.add(user_id)
                 player, _ = await Player.get_or_create(discord_id=user_id)
-                await BallInstance.create(
+                permitinstance = await BallInstance.create(
                     ball=permitball,
                     player=player,
                     special=None,
@@ -306,6 +307,10 @@ class currency(commands.Cog):
                 await interaction.followup.send(
                     f"{currencyname} Permit successfully given.\nUse this command again to continue upgrading.",
                     ephemeral=True,
+                )
+                await log_action(
+                    f"{interaction.user}({user_id}): Granted {permitinstance}\n",
+                    interaction.client,
                 )
             return False
         elif permitcheck > 1: #deleted duplicate permits
@@ -319,7 +324,20 @@ class currency(commands.Cog):
             if not foundpermit:
                 return await self.check_permit(interaction)
             else:
-                return True
+                pfilters2 = {}
+                permitball2 = self.get_permit()
+                pfilters2["ball"] = permitball2
+                pfilters2["player__discord_id"] = user_id
+                permitcheck2 = await BallInstance.filter(**pfilters2).count()
+                if permitcheck2 > 1:
+                    await interaction.followup.send("You have found an ultra rare error!\nDm moofficial0 for a fix.") #very rare
+                    await log_action(
+                        f"⚠️ {interaction.user}({user_id}): ULTRA RARE ERROR (multi valid permits) ⚠️\n",
+                        interaction.client,
+                    )
+                    return False
+                else:
+                    return True
         else:
             self.permit_users.add(user_id)
             return True
@@ -463,6 +481,7 @@ class currency(commands.Cog):
         if view.value:
             if await self.pay(interaction, total_cost):
                 resultupgradetext = f"{settings.collectible_name.capitalize()} successfully upgraded!\n{upgradetext}"
+                
                 for key, value in updates.items():
                     setattr(countryball, key, value)
                 await countryball.save()
@@ -470,6 +489,13 @@ class currency(commands.Cog):
                     resultupgradetext,
                     ephemeral=True,
                 )
+                resultlog = "Success ✅"
+            else:
+                resultlog = "Failed :x:"
+            await log_action(
+                f"{interaction.user}({user_id}): Upgrade {upgradetext}\n{total_cost} {changecurrency}\n{resultlog}",
+                interaction.client,
+            )
 
         
         
