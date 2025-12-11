@@ -53,7 +53,7 @@ if settings.bot_name == "dragonballdex":
     currencyname = "Zeni"
     botplayer = 1293338035500351538
     for i in range(1,10):
-        currencycards.append(195+i) #495 main bot 195 test bot
+        currencycards.append(495+i) #495 main bot 195 test bot
 else:
     T1Req = 80 #requirements for upgrading (cost for increasing a stat by 20%)
     T1Rarity = 1
