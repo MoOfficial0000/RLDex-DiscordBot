@@ -4,11 +4,13 @@ import random
 import re
 import tempfile
 import traceback
+import asyncio
 
 from ballsdex.packages.countryballs.countryball import BallSpawnView
 from datetime import datetime
 from discord.utils import get
 from discord import app_commands
+from discord import Embed
 from discord.ext import commands
 from tortoise.exceptions import DoesNotExist
 from tortoise.expressions import Q
@@ -49,8 +51,9 @@ if settings.bot_name == "dragonballdex":
     CommonRarity = 62
     LimitedReq = 500
     currencyname = "Zeni"
+    botplayer = 1293338035500351538
     for i in range(1,10):
-        currencycards.append(495+i) #495 main bot 195 test bot
+        currencycards.append(195+i) #495 main bot 195 test bot
 else:
     T1Req = 80 #requirements for upgrading (cost for increasing a stat by 20%)
     T1Rarity = 1
@@ -58,6 +61,7 @@ else:
     CommonRarity = 233
     LimitedReq = 200
     currencyname = "Credits"
+    botplayer = 1237889057330303057
     for i in ZENI_NOTES:
         if i == 1:
             currencycardname = f"1 Credit"
@@ -76,7 +80,7 @@ class currency(commands.Cog):
 
     def __init__(self, bot: "BallsDexBot"):
         self.bot = bot
-        self.permit_users = set()
+        self.permit_users = {}
 
     currencycommands = app_commands.Group(
         name=currencyname.lower(), description=f'{currencyname} commands'
@@ -120,7 +124,11 @@ class currency(commands.Cog):
         exponent = 2.5
         norm = (rarity - T1Rarity) / (CommonRarity - T1Rarity)
         return CommonReq + (T1Req - CommonReq) * (1 - norm) ** exponent
-        
+
+    def exponential_pricing(self, x):
+        start_value = 50 #initial cost
+        growth_rate = 0.025
+        return start_value * (2 ** ((x - 1) * growth_rate))
 
     def optimal_payment(self, price: int, balance_rows):
         wallet = {zeni: count for (zeni, count, _) in balance_rows}
@@ -277,6 +285,7 @@ class currency(commands.Cog):
         pfilters["ball"] = permitball
         pfilters["player__discord_id"] = user_id
         permitcheck = await BallInstance.filter(**pfilters).count()
+        permitlist = await BallInstance.filter(**pfilters).prefetch_related("ball")
         if permitcheck == 0:
             view = ConfirmChoiceView(
                 interaction,
@@ -293,7 +302,6 @@ class currency(commands.Cog):
                 if user_id in self.permit_users: #incase someone uses the command multiple times
                     await interaction.followup.send(f"Error. You already have {currencyname} Permit.",ephemeral=True)
                     return False
-                self.permit_users.add(user_id)
                 player, _ = await Player.get_or_create(discord_id=user_id)
                 permitinstance = await BallInstance.create(
                     ball=permitball,
@@ -304,6 +312,7 @@ class currency(commands.Cog):
                     server_id=1238814628327325716, #as a mark that the permit was given by this command, not spawned/given
                     spawned_time=tortoise_now() - timedelta(hours=1), #as a mark that the permit was given by this command, not spawned/given
                 )
+                self.permit_users[user_id] = permitinstance
                 await interaction.followup.send(
                     f"{currencyname} Permit successfully given.\nUse this command again to continue upgrading.",
                     ephemeral=True,
@@ -313,34 +322,54 @@ class currency(commands.Cog):
                     interaction.client,
                 )
             return False
-        elif permitcheck > 1: #deleted duplicate permits
-            permitlist = await BallInstance.filter(**pfilters).prefetch_related("ball")
-            foundpermit = False
-            for pb in permitlist:
-                if pb.server_id != 1238814628327325716: #if it was given by admin or caught force caught
-                    await pb.delete()
-                else:
-                    foundpermit = True
-            if not foundpermit:
-                return await self.check_permit(interaction)
+        
+        #check your permits if you have 1 or more
+        foundpermit = False
+        valid_permit = None
+        deleted_permits = []
+        for pb in permitlist:
+            if pb.server_id != 1238814628327325716: #if it was given by admin or caught force caught
+                deleted_permits.append(pb.description(bot=self.bot))
+                pb.deleted = True #soft delete
+                await pb.save()
             else:
-                pfilters2 = {}
-                permitball2 = self.get_permit()
-                pfilters2["ball"] = permitball2
-                pfilters2["player__discord_id"] = user_id
-                permitcheck2 = await BallInstance.filter(**pfilters2).count()
-                if permitcheck2 > 1:
-                    await interaction.followup.send("You have found an ultra rare error!\nDm moofficial0 for a fix.") #very rare
-                    await log_action(
-                        f"⚠️ {interaction.user}({user_id}): ULTRA RARE ERROR (multi valid permits) ⚠️\n",
-                        interaction.client,
-                    )
-                    return False
-                else:
-                    return True
-        else:
-            self.permit_users.add(user_id)
-            return True
+                foundpermit = True
+                valid_permit = pb
+
+        if deleted_permits:
+            logtext = (
+                f"{interaction.user}({user_id}): Soft deleted invalid permit(s):\n" +
+                "\n".join(f"- {d}" for d in deleted_permits)
+            )
+            await log_action(logtext, interaction.client)
+
+        #recurse if no valid permits remain
+        if not foundpermit:
+            return await self.check_permit(interaction)
+
+        #check again how many valid permits remain
+        pfilters2 = {}
+        permitball2 = self.get_permit()
+        pfilters2["ball"] = permitball2
+        pfilters2["player__discord_id"] = user_id
+        permitcheck2 = await BallInstance.filter(**pfilters2).count()
+        if permitcheck2 > 1:
+            valid_permits = []
+            permitlist2 = await BallInstance.filter(**pfilters2).prefetch_related("ball")
+            for pb in permitlist2:
+                valid_permits.append(pb.description(bot=self.bot))
+            logtext2 = (
+                f"⚠️ {interaction.user}({user_id}): ULTRA RARE ERROR (multi valid permits) ⚠️\n" +
+                "\n".join(f"- {d}" for d in valid_permits)
+            )
+            await log_action(logtext2, interaction.client)
+            await interaction.followup.send("You have found an ultra rare error!\nDm moofficial0 for a fix.") #very rare
+            return False
+
+        #if exactly one valid permit
+        self.permit_users[user_id] = valid_permit
+        return True
+
 
     @currencycommands.command(name="count",description=f"Count how much {currencyname} you own.")
     @app_commands.checks.cooldown(1, 10, key=lambda i: i.user.id)
@@ -391,7 +420,7 @@ class currency(commands.Cog):
 
         user_id = interaction.user.id
         if user_id not in self.permit_users:
-            if await self.check_permit(interaction) == False:
+            if not self.check_permit(interaction):
                 return
                 
         countryballname = f"{await countryball.ball}"
@@ -496,8 +525,158 @@ class currency(commands.Cog):
                 f"{interaction.user}({user_id}): Upgrade {upgradetext}\n{total_cost} {changecurrency}\n{resultlog}",
                 interaction.client,
             )
+            
+    async def buffupdate(self, interaction: discord.Interaction, permitball):
+        await interaction.response.defer(thinking=True,ephemeral=True)
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(style=discord.ButtonStyle.primary, emoji="⏫", label="Upgrade", disabled=True))
+        await interaction.message.edit(view=view)
+        currentbuff = permitball.attack_bonus
+        pricing = int(self.exponential_pricing(currentbuff+1))
+        if await self.pay(interaction, pricing):
+            currentbuff = currentbuff+1 #renew
+            pricing = int(self.exponential_pricing(currentbuff+1))
+            permitball.attack_bonus = currentbuff
+            await permitball.save()
+            embed = discord.Embed(
+                title=f"✨🌌 Special Buffs Upgrading 🌌✨",
+                description=f"Upgrade Special Buffs to deal more in battles and boss battles!\nWorks on all specials."
+            )
+            embed.color=discord.Color.from_rgb(255,239,71)
+            embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
+            embed.add_field(
+                name="CURRENT BUFF LEVEL:",
+                value=f" **+{currentbuff}%**",
+                inline=False
+            )
+            embed.add_field(
+                name="NEXT BUFF LEVEL:",
+                value=f" **+{currentbuff+1}%**\n\u200b",
+                inline=False
+            )
+
+            embed.add_field(
+                name="💰 Upgrade Cost:",
+                value=f"**{pricing}** {currencyname}",
+                inline=False
+            )
+            
+            embed.set_footer(
+                text=f"💡 Your special buffs are currently **boosted an extra {currentbuff}% for you!**"
+            )
+            
+            upgrade_button = discord.ui.Button(
+                style=discord.ButtonStyle.primary, emoji="⏫", label="Upgrade"
+            )
+            try:
+                await interaction.response.defer(ephemeral=True)
+            except discord.errors.InteractionResponded:
+                pass
+            await interaction.message.edit(embed=embed)
+            await asyncio.sleep(5)
+            
+            new_upgrade_button = discord.ui.Button(
+                style=discord.ButtonStyle.primary, emoji="⏫", label="Upgrade"
+            )
+            original_user = interaction.user
+            async def new_callback(i: discord.Interaction):
+                if i.user != original_user:
+                    await i.response.send_message("This button isn't for you!", ephemeral=True)
+                    return
+                await self.buffupdate(i,permitball)
+
+            new_upgrade_button.callback = new_callback
+
+            view = discord.ui.View(timeout=60)
+            view.add_item(new_upgrade_button)
+            await interaction.message.edit(view=view)
+
+        
+    @upgradecommands.command(name="buffs",description=f"Upgrade or downgrade buffs of all specials.")
+    @app_commands.checks.cooldown(1, 100, key=lambda i: i.user.id)
+    async def buffs(
+        self,
+        interaction: discord.Interaction,
+    ):
+        if interaction.response.is_done():
+            return
+        
+        assert interaction.guild
+
+        await interaction.response.defer(thinking=True)
+
+        user_id = interaction.user.id
+        if user_id not in self.permit_users:
+            if not await self.check_permit(interaction):
+                return
+
+        permitball = self.permit_users[user_id]
+        currentbuff = permitball.attack_bonus
+        pricing = int(self.exponential_pricing(currentbuff+1))
+        
+        embed = discord.Embed(
+            title=f"✨🌌 Special Buffs Upgrading 🌌✨",
+            description=f"Upgrade Special Buffs to deal more in battles and boss battles!\nWorks on all specials."
+        )
+        embed.color=discord.Color.from_rgb(255,239,71)
+        embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
+        embed.add_field(
+            name="CURRENT BUFF LEVEL:",
+            value=f" **+{currentbuff}%**",
+            inline=False
+        )
+        embed.add_field(
+            name="NEXT BUFF LEVEL:",
+            value=f" **+{currentbuff+1}%**\n\u200b",
+            inline=False
+        )
+
+        embed.add_field(
+            name="💰 Upgrade Cost:",
+            value=f"**{pricing}** {currencyname}",
+            inline=False
+        )
+        
+        embed.set_footer(
+            text=f"💡 Your special buffs are currently **boosted an extra {currentbuff}% for you!**"
+        )
+        
+        upgrade_button = discord.ui.Button(
+            style=discord.ButtonStyle.primary, emoji="⏫", label="Upgrade"
+        )
+
+        async def protected_callback(button_interaction: discord.Interaction):
+            if button_interaction.user.id != user_id:
+                await button_interaction.response.send_message(
+                    "This button isn't for you!", ephemeral=True
+                )
+                return
+            await self.buffupdate(button_interaction, permitball)
+
+        upgrade_button.callback = protected_callback
+
+        view = discord.ui.View(timeout=60)
+        
+        view.add_item(upgrade_button)
+
+        await interaction.followup.send(
+            embed=embed,
+            view=view
+        )
+        
+    @upgradecommands.command(name="permitlist",description=f"Upgrade or downgrade buffs of all specials.")
+    @app_commands.checks.cooldown(1, 1, key=lambda i: i.user.id)
+    async def permitlist(
+        self,
+        interaction: discord.Interaction,
+        delete: bool | None = False
+    ):
+        await interaction.response.send_message(self.permit_users)
+        if delete:
+            self.permit_users.clear()
 
         
         
+    
 
 
