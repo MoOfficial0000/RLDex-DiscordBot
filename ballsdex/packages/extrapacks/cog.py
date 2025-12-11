@@ -10,6 +10,7 @@ import traceback
 
 from datetime import datetime, timedelta, timezone
 from ballsdex.packages.countryballs.countryball import BallSpawnView
+from ballsdex.packages.battle.cog import SPECIALBUFFS
 
 from discord.utils import get
 from discord import app_commands, File
@@ -19,6 +20,7 @@ from tortoise.expressions import Q
 
 from ballsdex.settings import settings
 from ballsdex.core.utils.paginator import FieldPageSource, Pages
+from ballsdex.core.utils.logging import log_action
 from ballsdex.settings import settings
 from ballsdex.core.models import Player, BallInstance, specials, Trade, balls
 from ballsdex.core.utils.transformers import (
@@ -29,6 +31,7 @@ from ballsdex.core.utils.transformers import (
     BallEnabledTransform,
     BallInstanceTransform,
     SpecialEnabledTransform,
+    SpecialEnabledTransformer,
     TradeCommandType,
 )
 
@@ -105,7 +108,6 @@ else:
         1
     ]
 
-    currencyname = "Credits"
     for i in CREDITS_NOTES:
         if i == 1:
             currencycardname = f"1 Credit"
@@ -128,6 +130,7 @@ class extraPacks(commands.Cog):
         self.hourly_claims = {}
         self.hourly_claims_file = os.path.join(os.path.dirname(__file__), "hourly_claims.json")
         self.load_hourly_claims()
+        self.permit_users = {}
 
     drop = app_commands.Group(
         name='drop', description='Drop commands to open drops'
@@ -146,6 +149,11 @@ class extraPacks(commands.Cog):
         else:
             dzeni = random.choices(dropcredits, weights=cweights, k=1)[0]
         return [x for x in balls.values() if x.id==dzeni][0]
+
+    def get_permit(self):
+        permitname = f"{currencyname} Permit"
+        permitball = [x for x in balls.values() if x.country==permitname][0]
+        return permitball
 
     def get_random_relic(self):
         return random.randint(321,324) #321,324 main bot 1,4 test bot
@@ -497,6 +505,109 @@ class extraPacks(commands.Cog):
 
         if settings.bot_name == "rocketleaguedex":
             await interaction.followup.send(f"```c\nPaint Rarities:\nTop 1. Mythical 🌌\nTop 2. Shiny ✨\nTop 3. Gold 🟨\nTop 3. Titanium White ⬜\nTop 5. Black ⬛\nTop 6. Cobalt 🟦\nTop 6. Crimson 🟥\nTop 6. Forest Green 🟩\nTop 6. Saffron 💛\nTop 6. Sky Blue 🩵\nTop 6. Pink 🩷\nTop 6. Purple 🟪\nTop 6. Lime 💚\nTop 6. Orange 🟧\nTop 6. Grey 🩶\nTop 6. Burnt Sienna 🟫\nTop 17. Unpainted ```",
+            ephemeral=True,
+        )
+
+    @app_commands.command()
+    @app_commands.checks.cooldown(1, 5, key=lambda i: i.user.id)
+    async def special_buffs(self, interaction: discord.Interaction):
+        """
+        Display all special buffs.
+        """
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        specials = await SpecialEnabledTransformer().load_items()
+
+        bot_key = "dragonballdex" if settings.bot_name == "dragonballdex" else "rocketleaguedex"
+
+        buff_results = []
+
+        user_id = interaction.user.id
+        if user_id not in self.permit_users:
+            pfilters = {}
+            permitball = self.get_permit()
+            pfilters["ball"] = permitball
+            pfilters["player__discord_id"] = user_id
+            permitcheck = await BallInstance.filter(**pfilters).count()
+            permitlist = await BallInstance.filter(**pfilters).prefetch_related("ball")
+
+            has_permit = False
+            
+            if permitcheck != 0:
+                foundpermit = False
+                valid_permit = None
+                deleted_permits = []
+                for pb in permitlist:
+                    if pb.server_id != 1238814628327325716: #if it was given by admin or caught force caught
+                        deleted_permits.append(pb.description(bot=self.bot))
+                        pb.deleted = True #soft delete
+                        await pb.save()
+                    else:
+                        foundpermit = True
+                        valid_permit = pb
+
+                if deleted_permits:
+                    logtext = (
+                        f"{interaction.user}({user_id}): Soft deleted invalid permit(s):\n" +
+                        "\n".join(f"- {d}" for d in deleted_permits)
+                    )
+                    await log_action(logtext, interaction.client)
+
+                if foundpermit:
+                    #check again how many valid permits remain
+                    pfilters2 = {}
+                    permitball2 = self.get_permit()
+                    pfilters2["ball"] = permitball2
+                    pfilters2["player__discord_id"] = user_id
+                    permitcheck2 = await BallInstance.filter(**pfilters2).count()
+                    if permitcheck2 > 1:
+                        valid_permits = []
+                        permitlist2 = await BallInstance.filter(**pfilters2).prefetch_related("ball")
+                        for pb in permitlist2:
+                            valid_permits.append(pb.description(bot=self.bot))
+                        logtext2 = (
+                            f"⚠️ {interaction.user}({user_id}): ULTRA RARE ERROR (multi valid permits) ⚠️\n" +
+                            "\n".join(f"- {d}" for d in valid_permits)
+                        )
+                        await log_action(logtext2, interaction.client)
+                        await interaction.followup.send("You have found an ultra rare error!\nDm moofficial0 for a fix.") #very rare
+                    else:
+                        #if exactly one valid permit
+                        self.permit_users[user_id] = valid_permit
+                        has_permit = True
+        else:
+            has_permit = True
+
+        if has_permit:
+            users_permit = self.permit_users[user_id]
+            users_buff = users_permit.attack_bonus
+            buff_multiplier = users_buff/100 + 1
+        else:
+            buff_multiplier = 1
+            
+        entries = []
+        for sp in specials:
+            name = f"{sp.name}" if sp.name else "None"
+            emoji = sp.emoji
+            fullname = f"{emoji}{name}"
+            buff = SPECIALBUFFS.get(name, {}).get(bot_key, 0)
+            your_buff = int(buff*buff_multiplier)
+            entry = (fullname, f"Base Buff: {buff}\nYour Buff: **{your_buff}** ⚡")
+            entries.append(entry)
+        # This is the number of countryballs who are displayed at one page,
+        # you can change this, but keep in mind: discord has an embed size limit.
+        per_page = 10
+
+        source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
+        source.embed.description = (
+            f"__**Special Buffs**__\n-# Use `/upgrade buffs` to upgrade your special buffs!"
+        )
+        source.embed.colour = discord.Colour.blurple()
+        source.embed.set_author(
+            name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
+        )
+
+        pages = Pages(source=source, interaction=interaction, compact=True)
+        await pages.start(
             ephemeral=True,
         )
 
