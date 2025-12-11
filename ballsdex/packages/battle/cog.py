@@ -39,8 +39,53 @@ if TYPE_CHECKING:
 log = logging.getLogger("ballsdex.packages.battle")
 
 battles = []
-highevent = ("Testers","Birthday Ball","Eid al-Adha 1445","Realm","Event Farmer","American","Dragon Ball","Aerial Tramway","Birthday 2025","Champion Edition Goku","Champion Edition Vegeta","International Cat Day 2025 (Larry)")
-lowevent = ("Lunar New Year 2025","Winter 2024","Summer","Spring Basket 2025","Dark Mist 2024","Goku Day 2025","Eid al-Adha 1446","Autumn 2025","International Cat Day 2025 (Rigby)","Rebirth of RLdex")
+highevent = {
+    "Testers","Birthday Ball","Eid al-Adha 1445","Realm","Event Farmer",
+    "American","Dragon Ball","Aerial Tramway","Birthday 2025",
+    "Champion Edition Goku","Champion Edition Vegeta",
+    "International Cat Day 2025 (Larry)"
+}
+
+lowevent = {
+    "Lunar New Year 2025","Winter 2024","Summer","Spring Basket 2025",
+    "Dark Mist 2024","Goku Day 2025","Eid al-Adha 1446","Autumn 2025",
+    "International Cat Day 2025 (Rigby)","Rebirth of RLdex","Winter 2025"
+}
+
+commonpaints = {
+    "Sky Blue", "Saffron", "Purple", "Pink", "Orange",
+    "Lime", "Grey", "Forest Green", "Crimson",
+    "Cobalt", "Burnt Sienna"
+}
+
+SPECIALBUFFS = {}
+
+def add_buff(name, dbd, rld):
+    SPECIALBUFFS[name] = {"dragonballdex": dbd, "rocketleaguedex": rld}
+
+add_buff("Shiny",        80000, 5000)
+add_buff("Mythical",     160000, 12000)
+add_buff("Collector",    100000, 6000)
+add_buff("Relicborne",   100000, 6000)
+add_buff("Boss",         120000, 8000)
+add_buff("Diamond",      120000, 8000)
+add_buff("Emerald",      200000, 14000)
+add_buff("Ruby",         360000, 18000)
+
+add_buff("Gold",         0, 1500)
+add_buff("Titanium White", 0, 1500)
+add_buff("Black",        0, 1250)
+
+for sp in highevent:
+    add_buff(sp, 50000, 3000)
+
+for sp in lowevent:
+    add_buff(sp, 30000, 2000)
+
+for sp in commonpaints:
+    add_buff(sp, 0, 1000)
+
+add_buff("None", 0, 0)
 
 @dataclass
 class GuildBattle:
@@ -453,31 +498,11 @@ class Battle(commands.GroupCog):
         maxvalue = 240000 if settings.bot_name == "dragonballdex" else 14000
         for countryball in countryballs:
             battlespecial = await countryball.special
-            battlespecial = (f"{battlespecial}")
-            if battlespecial == "Shiny":
-                buff = 80000 if settings.bot_name == "dragonballdex" else 5000
-            elif battlespecial == "Mythical":
-                buff = 160000 if settings.bot_name == "dragonballdex" else 12000
-            elif battlespecial == "Collector" or battlespecial == "Relicborne":
-                buff = 100000 if settings.bot_name == "dragonballdex" else 6000
-            elif battlespecial == "Boss" or battlespecial == "Diamond":
-                buff = 120000 if settings.bot_name == "dragonballdex" else 8000
-            elif battlespecial == "Emerald":
-                buff = 200000 if settings.bot_name == "dragonballdex" else 14000
-            elif battlespecial == "Ruby":
-                buff = 360000 if settings.bot_name == "dragonballdex" else 18000
-            elif battlespecial in highevent:
-                buff = 50000 if settings.bot_name == "dragonballdex" else 3000
-            elif battlespecial in lowevent:
-                buff = 30000 if settings.bot_name == "dragonballdex" else 2000
-            elif battlespecial == "Gold" or battlespecial == "Titanium White":
-                buff = 1500
-            elif battlespecial == "Black":
-                buff = 1250
-            elif battlespecial == None or battlespecial == "None":
-                buff = 0
-            else:
-                buff = 1000
+            battlespecial = f"{battlespecial}"
+            if not battlespecial:
+                battlespecial = "None"
+            bot_key = "dragonballdex" if settings.bot_name == "dragonballdex" else "rocketleaguedex"
+            buff = SPECIALBUFFS.get(battlespecial, {}).get(bot_key, 0)
             if countryball.health < 0:
                 countryballhealth = 0
             elif countryball.health > maxvalue:
@@ -556,31 +581,11 @@ class Battle(commands.GroupCog):
         maxvalue = 240000 if settings.bot_name == "dragonballdex" else 14000
         for countryball in countryballs:
             battlespecial = await countryball.special
-            battlespecial = (f"{battlespecial}")
-            if battlespecial == "Shiny":
-                buff = 80000 if settings.bot_name == "dragonballdex" else 5000
-            elif battlespecial == "Mythical":
-                buff = 160000 if settings.bot_name == "dragonballdex" else 12000
-            elif battlespecial == "Collector" or battlespecial == "Relicborne":
-                buff = 100000 if settings.bot_name == "dragonballdex" else 6000
-            elif battlespecial == "Boss" or battlespecial == "Diamond":
-                buff = 120000 if settings.bot_name == "dragonballdex" else 8000
-            elif battlespecial == "Emerald":
-                buff = 200000 if settings.bot_name == "dragonballdex" else 14000
-            elif battlespecial == "Ruby":
-                buff = 360000 if settings.bot_name == "dragonballdex" else 18000
-            elif battlespecial in highevent:
-                buff = 50000 if settings.bot_name == "dragonballdex" else 3000
-            elif battlespecial in lowevent:
-                buff = 30000 if settings.bot_name == "dragonballdex" else 2000
-            elif battlespecial == "Gold" or battlespecial == "Titanium White":
-                buff = 1500
-            elif battlespecial == "Black":
-                buff = 1250
-            elif battlespecial == None or battlespecial == "None":
-                buff = 0
-            else:
-                buff = 1000
+            battlespecial = f"{battlespecial}"
+            if not battlespecial:
+                battlespecial = "None"
+            bot_key = "dragonballdex" if settings.bot_name == "dragonballdex" else "rocketleaguedex"
+            buff = SPECIALBUFFS.get(battlespecial, {}).get(bot_key, 0)
             if countryball.health < 0:
                 countryballhealth = 0
             elif countryball.health > maxvalue:
