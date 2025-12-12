@@ -519,8 +519,6 @@ class extraPacks(commands.Cog):
 
         bot_key = "dragonballdex" if settings.bot_name == "dragonballdex" else "rocketleaguedex"
 
-        buff_results = []
-
         user_id = interaction.user.id
         if user_id not in self.permit_users:
             pfilters = {}
@@ -601,7 +599,7 @@ class extraPacks(commands.Cog):
         source.embed.description = (
             f"__**Special Buffs**__\n-# Use `/upgrade buffs` to upgrade your special buffs!"
         )
-        source.embed.colour = discord.Colour.blurple()
+        source.embed.colour = discord.Color.from_rgb(255,239,71)
         source.embed.set_author(
             name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
         )
