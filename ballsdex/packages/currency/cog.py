@@ -364,14 +364,10 @@ class currency(commands.Cog):
             return await self.check_permit(interaction)
 
         #check again how many valid permits remain
-        pfilters2 = {}
-        permitball2 = self.get_permit()
-        pfilters2["ball"] = permitball2
-        pfilters2["player__discord_id"] = user_id
-        permitcheck2 = await BallInstance.filter(**pfilters2).count()
+        permitcheck2 = await BallInstance.filter(**pfilters).count()
         if permitcheck2 > 1:
             valid_permits = []
-            permitlist2 = await BallInstance.filter(**pfilters2).prefetch_related("ball")
+            permitlist2 = await BallInstance.filter(**pfilters).prefetch_related("ball")
             for pb in permitlist2:
                 valid_permits.append(pb.description(bot=self.bot))
             logtext2 = (
