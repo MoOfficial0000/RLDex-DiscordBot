@@ -18,6 +18,7 @@ from ballsdex.core.models import (
     Player
 )
 from ballsdex.core.models import balls as countryballs
+from ballsdex.core.utils.logging import log_action
 from ballsdex.settings import settings
 
 from ballsdex.core.utils.transformers import (
@@ -86,6 +87,104 @@ for sp in commonpaints:
     add_buff(sp, 0, 1000)
 
 add_buff("None", 0, 0)
+
+async def checkpermit(obj, user_id, interaction):
+    client = interaction.client if interaction is not None else obj.bot
+    # User already cached
+    if user_id in obj.permit_users:
+        permitball = obj.permit_users[user_id]
+
+        # Try fetching fresh from DB
+        try:
+            permitball = await BallInstance.get(id=permitball.id)
+        except DoesNotExist:
+            obj.permit_users.pop(user_id, None)
+            await log_action(
+                f"{user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                client,
+            )
+            if not await checkpermit(obj, user_id, interaction):
+                return False
+            permitball = obj.permit_users[user_id]
+
+        # Soft delete check
+        if permitball.deleted:#this will likely never be true, only used incase DoesNotExist did not trigger for soft deleted balls for any reason
+            obj.permit_users.pop(user_id, None)
+            await log_action(
+                f"{user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                client,
+            )
+            if not await checkpermit(obj, user_id, interaction):
+                return False
+            permitball = obj.permit_users[user_id]
+
+        # Wrong player / transferred check
+        user_player, _ = await Player.get_or_create(discord_id=user_id)
+        if permitball.player_id != user_player.id:
+            obj.permit_users.pop(user_id, None)
+            await log_action(
+                f"{user_id}'s {permitball}: TRANSFERRED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                client,
+            )
+            if not await checkpermit(obj, user_id, interaction):
+                return False
+            permitball = obj.permit_users[user_id]
+
+        # All checks passed
+        obj.permit_users[user_id] = permitball #might seem redundant, but needed for safety
+        return True
+
+    # Check permits in DB
+    pfilters = {
+        "ball": obj.get_permit(),
+        "player__discord_id": user_id
+    }
+    permitcheck = await BallInstance.filter(**pfilters).count()
+    permitlist = await BallInstance.filter(**pfilters).prefetch_related("ball")
+
+    if permitcheck == 0:
+        return False  # No permits found
+
+    foundpermit = False
+    valid_permit = None
+    deleted_permits = []
+
+    for pb in permitlist:
+        if pb.server_id != 1238814628327325716:  # invalid permit, if given by admin or spawned
+            deleted_permits.append(pb.description(bot=obj.bot))
+            pb.deleted = True  # soft delete
+            await pb.save()
+        else:
+            foundpermit = True
+            valid_permit = pb
+
+    if deleted_permits:
+        logtext = (
+            f"{user_id}: Soft deleted invalid permit(s):\n" +
+            "\n".join(f"- {d}" for d in deleted_permits)
+        )
+        await log_action(logtext, client)
+
+    if foundpermit:
+        # Check again how many valid permits remain
+        permitcheck2 = await BallInstance.filter(**pfilters).count()
+        if permitcheck2 > 1:
+            permitlist2 = await BallInstance.filter(**pfilters).prefetch_related("ball")
+            valid_permits = [pb.description(bot=obj.bot) for pb in permitlist2]
+            logtext2 = (
+                f"⚠️ {user_id}: ULTRA RARE ERROR (multi valid permits) ⚠️\n" +
+                "\n".join(f"- {d}" for d in valid_permits)
+            )
+            await log_action(logtext2, client)
+            if interaction is not None:
+                await interaction.followup.send("You have found an ultra rare error!\nDm moofficial0 for a fix.")
+            return False  # ambiguous, treat as no valid permit
+        else:
+            # Exactly one valid permit → add to list
+            obj.permit_users[user_id] = valid_permit
+            return True
+
+    return False  # No valid permits
 
 @dataclass
 class GuildBattle:
@@ -206,6 +305,8 @@ class Battle(commands.GroupCog):
     def __init__(self, bot: "BallsDexBot"):
         self.bot = bot
         self.battlerounds = []
+        self.permit_users = {}
+        self.buffs = {}
 
     bulk = app_commands.Group(
         name='bulk', description='Bulk commands for battle'
@@ -214,6 +315,14 @@ class Battle(commands.GroupCog):
     admin = app_commands.Group(
         name='admin', description='Admin commands for battle'
     )
+
+    def get_permit(self):
+        if settings.bot_name == "dragonballdex":
+            permitname = f"Zeni Permit"
+        else:
+            permitname = f"Credits Permit"
+        permitball = [x for x in countryballs.values() if x.country==permitname][0]
+        return permitball
     
     async def start_battle(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -273,7 +382,7 @@ class Battle(commands.GroupCog):
                 value=f"{guild_battle.battle.winner} - Turn: {guild_battle.battle.turns}",
                 inline=False,
             )
-            embed.set_footer(text="Battle log is attached.")
+            embed.set_footer(text="Battle log is attached.\nUse `/upgrade stats` or `/upgrade buffs` to get even stronger!")
 
             await interaction.message.edit(
                 content=f"{guild_battle.author.mention} vs {guild_battle.opponent.mention}",
@@ -286,6 +395,8 @@ class Battle(commands.GroupCog):
             battles.pop(battles.index(guild_battle))
             for bround in self.battlerounds:
                 if interaction.user.id in bround:
+                    self.buffs.pop(bround[0], None)
+                    self.buffs.pop(bround[1], None)
                     self.battlerounds.remove(bround)
                     break
         else:
@@ -366,6 +477,8 @@ class Battle(commands.GroupCog):
         battles.pop(battles.index(guild_battle))
         for bround in self.battlerounds:
             if interaction.user.id in bround:
+                self.buffs.pop(bround[0], None)
+                self.buffs.pop(bround[1], None)
                 self.battlerounds.remove(bround)
                 break
 
@@ -405,6 +518,20 @@ class Battle(commands.GroupCog):
                 "You are already in a battle. You may use `/battle cancel` to cancel it.", ephemeral=True,
             )
             return
+        user_id = interaction.user.id
+        opponent_id = opponent.id
+        p1_has_permit = await checkpermit(self, user_id, interaction)
+        if p1_has_permit:
+            p1_permit = self.permit_users[user_id]
+            self.buffs[user_id] = p1_permit.attack_bonus
+        else:
+            self.buffs[user_id] = 0
+        p2_has_permit = await checkpermit(self, opponent_id, None)
+        if p2_has_permit:
+            p2_permit = self.permit_users[opponent_id]
+            self.buffs[opponent_id] = p2_permit.attack_bonus
+        else:
+            self.buffs[opponent_id] = 0
         
         battles.append(GuildBattle(interaction, interaction.user, opponent))
         if max_amount < 0:
@@ -453,7 +580,7 @@ class Battle(commands.GroupCog):
             view=view,
         )
 
-    async def add_balls(self, interaction: discord.Interaction, countryballs):
+    async def add_balls(self, interaction: discord.Interaction, countryballs, users_buff):
         guild_battle = fetch_battle(interaction.user)
 
         if guild_battle is None:
@@ -503,6 +630,7 @@ class Battle(commands.GroupCog):
                 battlespecial = "None"
             bot_key = "dragonballdex" if settings.bot_name == "dragonballdex" else "rocketleaguedex"
             buff = SPECIALBUFFS.get(battlespecial, {}).get(bot_key, 0)
+            buff=int(buff*(users_buff/100 + 1))
             if countryball.health < 0:
                 countryballhealth = 0
             elif countryball.health > maxvalue:
@@ -545,7 +673,7 @@ class Battle(commands.GroupCog):
             )
         )
 
-    async def remove_balls(self, interaction: discord.Interaction, countryballs):
+    async def remove_balls(self, interaction: discord.Interaction, countryballs, users_buff):
         guild_battle = fetch_battle(interaction.user)
 
         if guild_battle is None:
@@ -586,6 +714,7 @@ class Battle(commands.GroupCog):
                 battlespecial = "None"
             bot_key = "dragonballdex" if settings.bot_name == "dragonballdex" else "rocketleaguedex"
             buff = SPECIALBUFFS.get(battlespecial, {}).get(bot_key, 0)
+            buff=int(buff*(users_buff/100 + 1))
             if countryball.health < 0:
                 countryballhealth = 0
             elif countryball.health > maxvalue:
@@ -650,7 +779,11 @@ class Battle(commands.GroupCog):
                 f"You cannot use this {settings.collectible_name}.", ephemeral=True
             )
             return
-        async for dupe in self.add_balls(interaction, [countryball]):
+
+        
+
+        users_buff = self.buffs[interaction.user.id]
+        async for dupe in self.add_balls(interaction, [countryball], users_buff):
             if dupe:
                 await interaction.response.send_message(
                     f"You cannot add the same {settings.collectible_name} twice!", ephemeral=True
@@ -681,7 +814,8 @@ class Battle(commands.GroupCog):
         countryball: Ball
             The countryball you want to remove.
         """
-        async for not_in_battle in self.remove_balls(interaction, [countryball]):
+        users_buff = self.buffs[interaction.user.id]
+        async for not_in_battle in self.remove_balls(interaction, [countryball], users_buff):
             if not_in_battle:
                 await interaction.response.send_message(
                     f"You cannot remove a {settings.collectible_name} that is not in your deck!", ephemeral=True
@@ -729,7 +863,9 @@ class Battle(commands.GroupCog):
                 balls = await BallInstance.filter(**filters)
 
             count = 0
-            async for dupe in self.add_balls(interaction, balls):
+            
+            users_buff = self.buffs[interaction.user.id]
+            async for dupe in self.add_balls(interaction, balls, users_buff):
                 if not dupe:
                     count += 1
             if countryball:
@@ -764,7 +900,8 @@ class Battle(commands.GroupCog):
                 balls = await BallInstance.filter(player=player)
                 
             count = 0
-            async for not_in_battle in self.remove_balls(interaction, balls):
+            users_buff = self.buffs[interaction.user.id]
+            async for not_in_battle in self.remove_balls(interaction, balls, users_buff):
                 if not not_in_battle:
                     count += 1
             if countryball:
@@ -806,6 +943,8 @@ class Battle(commands.GroupCog):
         battles.pop(battles.index(guild_battle))
         for bround in self.battlerounds:
             if interaction.user.id in bround:
+                self.buffs.pop(bround[0], None)
+                self.buffs.pop(bround[1], None)
                 self.battlerounds.remove(bround)
                 break
 
@@ -830,7 +969,8 @@ class Battle(commands.GroupCog):
             pass
 
         battles.clear()
-        self.battlerounds = []
+        self.battlerounds.clear()
+        self.buffs.clear()
 
         await interaction.followup.send(f"All battle have been reset.",ephemeral=True)
         
