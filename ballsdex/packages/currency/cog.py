@@ -5,6 +5,7 @@ import re
 import tempfile
 import traceback
 import asyncio
+import math
 
 from ballsdex.packages.countryballs.countryball import BallSpawnView
 from datetime import datetime
@@ -23,6 +24,7 @@ from ballsdex.core.utils.buttons import ConfirmChoiceView
 from ballsdex.core.utils.logging import log_action
 from ballsdex.settings import settings
 from ballsdex.core.models import Player, BallInstance, specials, Trade, balls
+from ballsdex.core.bot import BallsDexBot
 from ballsdex.core.utils.transformers import (
     BallTransform,
     EconomyTransform,
@@ -44,6 +46,7 @@ log = logging.getLogger("ballsdex.packages.zeni")
 ZENI_NOTES = [1,2,5,10,20,50,100,200,500] 
 currencycards = []
 
+
 if settings.bot_name == "dragonballdex":
     T1Req = 200 #requirements for upgrading (cost for increasing a stat by 100%
     T1Rarity = 1
@@ -51,7 +54,7 @@ if settings.bot_name == "dragonballdex":
     CommonRarity = 62
     LimitedReq = 500
     currencyname = "Zeni"
-    botplayer = 1293338035500351538
+    UPGRADECHANNEL = 1448933355575054417
     for i in range(1,10):
         currencycards.append(495+i) #495 main bot 195 test bot
 else:
@@ -61,7 +64,7 @@ else:
     CommonRarity = 233
     LimitedReq = 200
     currencyname = "Credits"
-    botplayer = 1237889057330303057
+    UPGRADECHANNEL = 1448933419886186608
     for i in ZENI_NOTES:
         if i == 1:
             currencycardname = f"1 Credit"
@@ -70,6 +73,18 @@ else:
         currencycard = [x for x in balls.values() if x.country==currencycardname][0]
         currencycards.append(currencycard.id)
 
+async def upgrade_log_action(message: str, bot: BallsDexBot, console_log: bool = False): #to log every upgrade someone does
+    if UPGRADECHANNEL:
+        channel = bot.get_channel(UPGRADECHANNEL)
+        if not channel:
+            log.warning(f"Channel {UPGRADECHANNEL} not found")
+            return
+        if not isinstance(channel, discord.TextChannel):
+            log.warning(f"Channel {channel.name} is not a text channel")  # type: ignore
+            return
+        await channel.send(message)
+    if console_log:
+        log.info(message)
 gradient = (CommonReq-T1Req)/(CommonRarity-T1Rarity)
 notallowed = ["zeni","credit","relic","dragon ball (","drop"]
 
@@ -107,7 +122,8 @@ class currency(commands.Cog):
         for zeninumber in ZENI_NOTES:
             filters = {}
             filters["ball"] = self.get_zeni(zeninumber)
-            filters["player__discord_id"] = user.id
+            if user is not None:
+                filters["player__discord_id"] = user.id
             balls = await BallInstance.filter(**filters).count()
             if returnballs:
                 balllist.append(await BallInstance.filter(**filters).prefetch_related("ball"))
@@ -128,7 +144,7 @@ class currency(commands.Cog):
     def exponential_pricing(self, x):
         start_value = 50 #initial cost
         growth_rate = 0.025
-        return start_value * (2 ** ((x - 1) * growth_rate))
+        return math.ceil(start_value * (2 ** ((x - 1) * growth_rate)))
 
     def optimal_payment(self, price: int, balance_rows):
         wallet = {zeni: count for (zeni, count, _) in balance_rows}
@@ -373,13 +389,23 @@ class currency(commands.Cog):
 
     @currencycommands.command(name="count",description=f"Count how much {currencyname} you own.")
     @app_commands.checks.cooldown(1, 10, key=lambda i: i.user.id)
-    async def count(self, interaction: discord.Interaction):
+    async def count(
+        self,
+        interaction: discord.Interaction,
+        ephemeral: bool = False,
+    ):
+        """
+        Parameters
+        ----------
+        ephemeral: bool
+            Whether or not to send the command ephemerally.
+        """
         if interaction.response.is_done():
             return
         
         assert interaction.guild
 
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
 
         zenibalance = await self.zeni_balance(interaction.user,False)
         zenitable = zenibalance[0]
@@ -388,7 +414,7 @@ class currency(commands.Cog):
         max_field1 = (8 if settings.bot_name == "dragonballdex" else 11)
         max_field2 = max(len(str(field2)) for field1,field2,field3 in zenitable) + 4
         max_field3 = max(len(str(field3)) for field1,field2,field3 in zenitable) + 4
-        table = "```\n"
+        table = f"**Total {currencyname}**: {totalzeni}\n\n**{currencyname} Breakdown**:```\n"
         table += f"{'Name':<{max_field1}} | {'Count':<{max_field2}} | {f'Subtotal':<{max_field3}}\n"
         table += f"{'-'*max_field1}-+-{'-'*max_field2}-+-{'-'*max_field3}\n"
         use_credits = (settings.bot_name != "dragonballdex")
@@ -396,9 +422,16 @@ class currency(commands.Cog):
             currencyname1 = "Credit" if use_credits and field1 == 1 else currencyname
             field1zeni = f"{field1} {currencyname1}"
             table += f"{field1zeni:<{max_field1}} | {field2:<{max_field2}} | {field3:<{max_field3}}\n"
-        table += f"\n Total {currencyname}: {totalzeni}"
         table += "```"
-        await interaction.followup.send(table)
+        embed = discord.Embed(
+            title=f"Total {currencyname} count",
+            description=table,
+            color=discord.Color.blurple(),
+        )
+        embed.set_author(
+            name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
+        )
+        await interaction.followup.send(embed=embed)
 
     
     @upgradecommands.command(name="stats",description=f"Upgrade or downgrade {settings.collectible_name} stats.")
@@ -450,12 +483,16 @@ class currency(commands.Cog):
         old_health = countryball.health_bonus
 
         updates = {}
+        attackwarning = ""
+        healthwarning = ""
         if new_health_bonus is not None:
             new_health = new_health_bonus
             updates['health_bonus'] = new_health
             if new_health == old_health:
                 return await interaction.followup.send(f"`new_health_bonus` cannot be the same as original health bonus")
             health_change = abs(new_health - old_health)
+            if new_health - old_health < 0:
+                healthwarning = "\n⚠️ WARNING: The new health bonus is a **downgrade**. ⚠️"
             health_cost = int(health_change*statcost)
             if health_cost == 0:
                 health_cost = 1
@@ -467,6 +504,8 @@ class currency(commands.Cog):
             if new_attack == old_attack:
                 return await interaction.followup.send(f"`new_attack_bonus` cannot be the same as original attack bonus")
             attack_change = abs(new_attack - old_attack)
+            if new_attack - old_attack < 0:
+                attackwarning = "\n⚠️ WARNING: The new attack bonus is a **downgrade**. ⚠️"
             attack_cost = int(attack_change*statcost)
             if attack_cost == 0:
                 attack_cost = 1
@@ -499,7 +538,7 @@ class currency(commands.Cog):
         else:
             changecurrency = currencyname
         await interaction.followup.send(
-            f"You are planning to upgrade:\n{upgradetext}\nThis will cost {total_cost} {changecurrency}",
+            f"You are planning to change:\n{upgradetext}{attackwarning}{healthwarning}\nThis will cost {total_cost} {changecurrency}",
             view=view,
             ephemeral=True,
         )
@@ -509,7 +548,7 @@ class currency(commands.Cog):
         
         if view.value:
             if await self.pay(interaction, total_cost):
-                resultupgradetext = f"{settings.collectible_name.capitalize()} successfully upgraded!\n{upgradetext}"
+                resultupgradetext = f"{settings.collectible_name.capitalize()} successfully changed!\n{upgradetext}"
                 
                 for key, value in updates.items():
                     setattr(countryball, key, value)
@@ -518,13 +557,10 @@ class currency(commands.Cog):
                     resultupgradetext,
                     ephemeral=True,
                 )
-                resultlog = "Success ✅"
-            else:
-                resultlog = "Failed :x:"
-            await log_action(
-                f"{interaction.user}({user_id}): Upgrade {upgradetext}\n{total_cost} {changecurrency}\n{resultlog}",
-                interaction.client,
-            )
+                await upgrade_log_action(
+                    f"{interaction.user}({user_id}): Upgrade {upgradetext}\n{total_cost} {changecurrency}",
+                    self.bot,
+                )
             
     async def buffupdate(self, interaction: discord.Interaction, permitball):
         await interaction.response.defer(thinking=True,ephemeral=True)
@@ -564,10 +600,13 @@ class currency(commands.Cog):
             embed.set_footer(
                 text=f"💡 Your special buffs are currently **boosted an extra {currentbuff}% for you!**"
             )
+
+            await upgrade_log_action(
+                f"{interaction.user}({interaction.user.id}) Upgrade SPECIAL BUFFS from `+{currentbuff-1}%` to `+{currentbuff}%`\n{pricing} {currencyname}", #-1 so it doesnt use new values
+                self.bot,
+            ) 
+
             
-            upgrade_button = discord.ui.Button(
-                style=discord.ButtonStyle.primary, emoji="⏫", label="Upgrade"
-            )
             try:
                 await interaction.response.defer(ephemeral=True)
             except discord.errors.InteractionResponded:
@@ -603,7 +642,7 @@ class currency(commands.Cog):
         
         assert interaction.guild
 
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer(thinking=True,ephemeral=True)
 
         user_id = interaction.user.id
         if user_id not in self.permit_users:
@@ -638,7 +677,7 @@ class currency(commands.Cog):
         )
         
         embed.set_footer(
-            text=f"💡 Your special buffs are currently **boosted an extra {currentbuff}% for you!**"
+            text=f"Your special buffs are currently **boosted** an extra {currentbuff}% for you!⚡\n💡 Use `/special_buffs` to check your buffs for each special."
         )
         
         upgrade_button = discord.ui.Button(
@@ -659,24 +698,114 @@ class currency(commands.Cog):
         
         view.add_item(upgrade_button)
 
-        await interaction.followup.send(
+        await interaction.channel.send(
             embed=embed,
             view=view
         )
-        
-    @upgradecommands.command(name="permitlist",description=f"Upgrade or downgrade buffs of all specials.")
-    @app_commands.checks.cooldown(1, 1, key=lambda i: i.user.id)
-    async def permitlist(
+
+        await interaction.followup.send("Upgrader embed sent!")
+
+    @currencycommands.command(name="admin_give",description=f"Give currency to another user (admin).")
+    async def admin_give(
         self,
         interaction: discord.Interaction,
-        delete: bool | None = False
+        user: discord.User,
+        n: app_commands.Range[int, 1, 10000]
     ):
-        await interaction.response.send_message(self.permit_users)
-        if delete:
-            self.permit_users.clear()
+        if interaction.user.id != 417286033487429633:
+            return await interaction.response.send_message(":x:",ephemeral=True)
+
+        await interaction.response.defer(thinking=True)
+        togiveresult = {}
+        amountgiven = n
+
+        for d in reversed(ZENI_NOTES):
+            if n >= d:
+                count = n // d
+                togiveresult[d] = count
+                n -= d * count
+
+        giventext = ""
+        player, _ = await Player.get_or_create(discord_id=user.id)
+        for value, amount in togiveresult.items():
+            if amount > 0:
+                for i in range(amount):
+                    changetogive = self.get_zeni(value)
+                    instance = await BallInstance.create(
+                        ball=changetogive,
+                        player=player,
+                        special=None,
+                        attack_bonus=0,
+                        health_bonus=0,
+                    )
+                if value == 1 and currencyname == "Credits":
+                    changecurrency = "Credit"
+                else:
+                    changecurrency = currencyname
+                giventext += f"- Given {amount}× {value} {changecurrency}\n"
+        if value == 1 and currencyname == "Credits":
+            changecurrency = "Credit"
+        else:
+            changecurrency = currencyname
+        embed = discord.Embed(
+            title=f"{amountgiven} {changecurrency} admin given to {user}",
+            description=giventext,
+            color=discord.Color.from_rgb(36,135,33)
+        )
+
+        embed.set_footer(text=f"Use `/{currencyname.lower()} count` to check how much {currencyname.lower()} you now own!")
+        embed.set_thumbnail(url=user.display_avatar.url)
+
+        await interaction.followup.send(embed=embed)
+
+    @currencycommands.command(name="admin_count",description=f"Count the number of {currencyname.lower()} that a player has or how many exist in total.")
+    @app_commands.checks.has_any_role(*settings.root_role_ids)
+    async def admin_count(
+        self,
+        interaction: discord.Interaction,
+        user: discord.User | None = None,
+    ):
+        if interaction.response.is_done():
+            return
+        
+        assert interaction.guild
+
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        zenibalance = await self.zeni_balance(user,False)
+        zenitable = zenibalance[0]
+        totalzeni = zenibalance[1]
+        
+        max_field1 = (8 if settings.bot_name == "dragonballdex" else 11)
+        max_field2 = max(len(str(field2)) for field1,field2,field3 in zenitable) + 4
+        max_field3 = max(len(str(field3)) for field1,field2,field3 in zenitable) + 4
+        table = f"**Total {currencyname}**: {totalzeni}\n\n**{currencyname} Breakdown**:```\n"
+        table += f"{'Name':<{max_field1}} | {'Count':<{max_field2}} | {f'Subtotal':<{max_field3}}\n"
+        table += f"{'-'*max_field1}-+-{'-'*max_field2}-+-{'-'*max_field3}\n"
+        use_credits = (settings.bot_name != "dragonballdex")
+        for field1, field2, field3 in zenitable:
+            currencyname1 = "Credit" if use_credits and field1 == 1 else currencyname
+            field1zeni = f"{field1} {currencyname1}"
+            table += f"{field1zeni:<{max_field1}} | {field2:<{max_field2}} | {field3:<{max_field3}}\n"
+        table += "```"
+        embed = discord.Embed(
+            title=f"Total {currencyname} count",
+            description=table,
+            color=discord.Color.blurple(),
+        )
+        if user:
+            iconurl = user.display_avatar.url
+            authorname = user.display_name
+        else:
+            iconurl = self.bot.user.display_avatar.url
+            authorname = settings.bot_name
+        embed.set_author(
+            name=authorname, icon_url=iconurl
+        )
+        await interaction.followup.send(embed=embed)
 
         
-        
+            
     
 
 
