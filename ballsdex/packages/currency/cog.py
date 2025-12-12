@@ -451,6 +451,9 @@ class currency(commands.Cog):
         if user_id not in self.permit_users:
             if not self.check_permit(interaction):
                 return
+
+        #this is just so it checks if player agreed to the permit
+        #no need to check for deleted or transferred error as permit ball isnt actually used here.
                 
         countryballname = f"{await countryball.ball}"
 
@@ -646,6 +649,51 @@ class currency(commands.Cog):
                 return
 
         permitball = self.permit_users[user_id]
+
+        # Incase it got hard deleted
+        try:
+            permitball = await BallInstance.get(id=permitball.id)
+        except DoesNotExist:
+            # Remove bad cache entry
+            self.permit_users.pop(user_id, None)
+            await log_action(
+                f"{interaction.user}({user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                interaction.client,
+            )
+
+            # Try verifying again
+            if not await self.check_permit(interaction):
+                return
+
+            permitball = self.permit_users[user_id]
+
+        # Incase it got soft deleted
+        if permitball.deleted: #this will likely never be true, only used incase DoesNotExist did not trigger for soft deleted balls for any reason
+            self.permit_users.pop(user_id, None)
+            await log_action(
+                f"{interaction.user}({user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                interaction.client,
+            )
+
+            if not await self.check_permit(interaction):
+                return
+
+            permitball = self.permit_users[user_id]
+
+        # Incase it got transferred by an admin
+        user_player, _ = await Player.get_or_create(discord_id=user_id)
+        
+        if permitball.player_id != user_player.id:
+            self.permit_users.pop(user_id, None)
+            await log_action(
+                f"{interaction.user}({user_id}'s {permitball}: TRANSFERRED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                interaction.client,
+            )
+
+            if not await self.check_permit(interaction):
+                return
+
+            permitball = self.permit_users[user_id]
         currentbuff = permitball.attack_bonus
         pricing = int(self.exponential_pricing(currentbuff+1))
         
@@ -804,8 +852,6 @@ class currency(commands.Cog):
             name=authorname, icon_url=iconurl
         )
         await interaction.followup.send(embed=embed)
-
-        
             
     
 
