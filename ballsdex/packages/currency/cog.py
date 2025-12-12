@@ -739,22 +739,27 @@ class currency(commands.Cog):
                         health_bonus=0,
                     )
                 if value == 1 and currencyname == "Credits":
-                    changecurrency = "Credit"
+                    givecurrency = "Credit"
                 else:
-                    changecurrency = currencyname
-                giventext += f"- Given {amount}× {value} {changecurrency}\n"
+                    givecurrency = currencyname
+                giventext += f"- Given {amount}× {value} {givecurrency}\n"
         if value == 1 and currencyname == "Credits":
-            changecurrency = "Credit"
+            givecurrency = "Credit"
         else:
-            changecurrency = currencyname
+            givecurrency = currencyname
         embed = discord.Embed(
-            title=f"{amountgiven} {changecurrency} admin given to {user}",
+            title=f"{amountgiven} {givecurrency} admin given to {user}",
             description=giventext,
             color=discord.Color.from_rgb(36,135,33)
         )
 
         embed.set_footer(text=f"Use `/{currencyname.lower()} count` to check how much {currencyname.lower()} you now own!")
         embed.set_thumbnail(url=user.display_avatar.url)
+
+        await log_action(
+            f"{interaction.user} gave {amountgiven} {givecurrency} to {user}({user.id})\n",
+            interaction.client,
+        )
 
         await interaction.followup.send(embed=embed)
 
