@@ -136,7 +136,7 @@ async def checkpermit(obj, user_id, interaction):
 
     # Check permits in DB
     pfilters = {
-        "ball": obj.get_permit(),
+        "ball": get_permit(),
         "player__discord_id": user_id
     }
     permitcheck = await BallInstance.filter(**pfilters).count()
@@ -296,6 +296,14 @@ def fetch_battle(user: discord.User | discord.Member):
 
     return found_battle
 
+def get_permit():
+    if settings.bot_name == "dragonballdex":
+        permitname = f"Zeni Permit"
+    else:
+        permitname = f"Credits Permit"
+    permitball = [x for x in countryballs.values() if x.country==permitname][0]
+    return permitball
+
 
 class Battle(commands.GroupCog):
     """
@@ -315,14 +323,6 @@ class Battle(commands.GroupCog):
     admin = app_commands.Group(
         name='admin', description='Admin commands for battle'
     )
-
-    def get_permit(self):
-        if settings.bot_name == "dragonballdex":
-            permitname = f"Zeni Permit"
-        else:
-            permitname = f"Credits Permit"
-        permitball = [x for x in countryballs.values() if x.country==permitname][0]
-        return permitball
     
     async def start_battle(self, interaction: discord.Interaction):
         await interaction.response.defer()
