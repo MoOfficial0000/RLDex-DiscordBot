@@ -222,7 +222,7 @@ class cashsystem(commands.Cog):
                 totalcurrency = "Credit"
             else:
                 totalcurrency = currencyname
-            await interaction.followup.send(f"You cannot afford this! You only have {totalzeni} {totalcurrency}", ephemeral=True)
+            await interaction.followup.send(f"You cannot afford this! You only have {totalzeni} {totalcurrency}\nYou can get {currencyname} by using the `/daily` command.", ephemeral=True)
             return False
         
         balllist = zenibalance[2]
@@ -309,7 +309,7 @@ class cashsystem(commands.Cog):
                 cancel_message="Request cancelled.",
             )
             await interaction.followup.send(
-                f"By using the upgrade commands you agree that ALL purchases are NON-REFUNDABLE.\nWould you like to continue? (You will recieve a permit that allows you to spend {currencyname} on upgrades.)",
+                f"By using the upgrade commands you agree that ALL purchases are NON-REFUNDABLE.\nWould you like to continue? (You will recieve a permit that allows you to spend {currencyname} on upgrades.)\n\n-# You can get {currencyname} by using the `/daily` command.",
                 view=view,
                 ephemeral=True,
             )
@@ -418,7 +418,7 @@ class cashsystem(commands.Cog):
             currencyname1 = "Credit" if use_credits and field1 == 1 else currencyname
             field1zeni = f"{field1} {currencyname1}"
             table += f"{field1zeni:<{max_field1}} | {field2:<{max_field2}} | {field3:<{max_field3}}\n"
-        table += "```"
+        table += f"```\n-# You can get {currencyname} by using the `/daily` command."
         embed = discord.Embed(
             title=f"Total {currencyname} count",
             description=table,
@@ -537,7 +537,7 @@ class cashsystem(commands.Cog):
         else:
             changecurrency = currencyname
         await interaction.followup.send(
-            f"You are planning to change:\n{upgradetext}{attackwarning}{healthwarning}\nThis will cost {total_cost} {changecurrency}",
+            f"You are planning to change:\n{upgradetext}{attackwarning}{healthwarning}\n\nThis will cost {total_cost} {changecurrency}\n-# You can get {currencyname} by using the `/daily` command.",
             view=view,
             ephemeral=True,
         )
@@ -657,7 +657,7 @@ class cashsystem(commands.Cog):
             # Remove bad cache entry
             self.permit_users.pop(user_id, None)
             await log_action(
-                f"{interaction.user}({user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                f"{user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
                 interaction.client,
             )
 
@@ -671,7 +671,7 @@ class cashsystem(commands.Cog):
         if permitball.deleted: #this will likely never be true, only used incase DoesNotExist did not trigger for soft deleted balls for any reason
             self.permit_users.pop(user_id, None)
             await log_action(
-                f"{interaction.user}({user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                f"{user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
                 interaction.client,
             )
 
@@ -686,7 +686,7 @@ class cashsystem(commands.Cog):
         if permitball.player_id != user_player.id:
             self.permit_users.pop(user_id, None)
             await log_action(
-                f"{interaction.user}({user_id}'s {permitball}: TRANSFERRED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                f"{user_id}'s {permitball}: TRANSFERRED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
                 interaction.client,
             )
 
@@ -716,7 +716,7 @@ class cashsystem(commands.Cog):
 
         embed.add_field(
             name="💰 Upgrade Cost:",
-            value=f"**{pricing}** {currencyname}",
+            value=f"**{pricing}** {currencyname}\n-# You can get {currencyname} by using the `/daily` command.\n\u200b",
             inline=False
         )
         
