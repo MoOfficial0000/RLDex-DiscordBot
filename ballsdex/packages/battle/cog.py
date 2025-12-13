@@ -100,7 +100,7 @@ async def checkpermit(obj, user_id, interaction):
         except DoesNotExist:
             obj.permit_users.pop(user_id, None)
             await log_action(
-                f"{user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                f"{user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `checkpermit`\n",
                 client,
             )
             if not await checkpermit(obj, user_id, interaction):
@@ -111,7 +111,7 @@ async def checkpermit(obj, user_id, interaction):
         if permitball.deleted:#this will likely never be true, only used incase DoesNotExist did not trigger for soft deleted balls for any reason
             obj.permit_users.pop(user_id, None)
             await log_action(
-                f"{user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                f"{user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `checkpermit`\n",
                 client,
             )
             if not await checkpermit(obj, user_id, interaction):
@@ -123,7 +123,7 @@ async def checkpermit(obj, user_id, interaction):
         if permitball.player_id != user_player.id:
             obj.permit_users.pop(user_id, None)
             await log_action(
-                f"{user_id}'s {permitball}: TRANSFERRED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                f"{user_id}'s {permitball}: TRANSFERRED ERROR\nPopped from `self.permit_users`, retrying `checkpermit`\n",
                 client,
             )
             if not await checkpermit(obj, user_id, interaction):
@@ -520,7 +520,7 @@ class Battle(commands.GroupCog):
             return
         user_id = interaction.user.id
         opponent_id = opponent.id
-        p1_has_permit = await checkpermit(self, user_id, interaction)
+        p1_has_permit = await checkpermit(self, user_id, None)
         if p1_has_permit:
             p1_permit = self.permit_users[user_id]
             self.buffs[user_id] = p1_permit.attack_bonus

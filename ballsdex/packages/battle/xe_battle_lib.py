@@ -49,60 +49,57 @@ def random_events():
 
 
 def gen_battle(battle: BattleInstance):
-    turn = 0  # Initialize turn counter
+    turn = 0
 
-    # Continue the battle if both players have at least one alive ball.
-    # End the battle if all balls do less than 1 damage.
-
-    if all(
-        ball.attack <= 0 for ball in battle.p1_balls + battle.p2_balls
-    ):
-        yield (
-            "Everyone stared at each other, "
-            "resulting in nobody winning."
-        )
+    # Stalemate check
+    if all(ball.attack <= 0 for ball in battle.p1_balls + battle.p2_balls):
+        yield "Everyone stared at each other, resulting in nobody winning."
         return
 
-    while any(ball for ball in battle.p1_balls if not ball.dead) and any(
-        ball for ball in battle.p2_balls if not ball.dead
+    while (
+        any(not ball.dead for ball in battle.p1_balls)
+        and any(not ball.dead for ball in battle.p2_balls)
     ):
-        alive_p1_balls = [ball for ball in battle.p1_balls if not ball.dead]
-        alive_p2_balls = [ball for ball in battle.p2_balls if not ball.dead]
+        # Build initiative order
+        initiative = [
+            ball for ball in battle.p1_balls + battle.p2_balls if not ball.dead
+        ]
+        random.shuffle(initiative)
 
-        for p1_ball, p2_ball in zip(alive_p1_balls, alive_p2_balls):
-            # Player 1 attacks first
+        for ball in initiative:
+            if ball.dead:
+                continue  # died earlier this round
 
-            if not p1_ball.dead:
-                turn += 1
+            turn += 1
 
-                event = random_events()
-                if event == 1:
-                    yield f"Turn {turn}: {p1_ball.owner}'s {p1_ball.name} missed {p2_ball.owner}'s {p2_ball.name}"
-                    continue
-                yield f"Turn {turn}: {attack(p1_ball, battle.p2_balls)}"
+            # Determine enemy team
+            enemy_team = (
+                battle.p2_balls if ball in battle.p1_balls else battle.p1_balls
+            )
 
-                if all(ball.dead for ball in battle.p2_balls):
-                    break
-            # Player 2 attacks
-            
-            if not p2_ball.dead:
-                turn += 1
+            if not any(not enemy.dead for enemy in enemy_team):
+                break
 
-                event = random_events()
-                if event == 1:
-                    yield f"Turn {turn}: {p2_ball.owner}'s {p2_ball.name} missed {p1_ball.owner}'s {p1_ball.name}"
-                    continue
-                yield f"Turn {turn}: {attack(p2_ball, battle.p1_balls)}"
+            # Miss check
+            if random_events() == 1:
+                target = random.choice(
+                    [b for b in enemy_team if not b.dead]
+                )
+                yield (
+                    f"Turn {turn}: {ball.owner}'s {ball.name} "
+                    f"missed {target.owner}'s {target.name}"
+                )
+                continue
 
-                if all(ball.dead for ball in battle.p1_balls):
-                    break
-    # Determine the winner
+            yield f"Turn {turn}: {attack(ball, enemy_team)}"
 
+        # Loop continues until one side is wiped
+
+    # Winner determination
     if all(ball.dead for ball in battle.p1_balls):
         battle.winner = battle.p2_balls[0].owner
-    elif all(ball.dead for ball in battle.p2_balls):
+    else:
         battle.winner = battle.p1_balls[0].owner
-    # Set turns
 
     battle.turns = turn
 
