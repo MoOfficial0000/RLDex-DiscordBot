@@ -34,6 +34,8 @@ from ballsdex.packages.battle.xe_battle_lib import (
     gen_battle,
 )
 
+from ballsdex.packages.cashsystem.cog import notallowed
+
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
 
@@ -624,6 +626,9 @@ class Battle(commands.GroupCog):
         # Create the BattleBall instance
         maxvalue = 240000 if settings.bot_name == "dragonballdex" else 14000
         for countryball in countryballs:
+            countryballname = f"{await countryball.ball}"
+            if any(substring in countryballname.lower() for substring in [x.lower() for x in notallowed]):
+                continue
             battlespecial = await countryball.special
             battlespecial = f"{battlespecial}"
             if not battlespecial:
@@ -784,7 +789,9 @@ class Battle(commands.GroupCog):
             )
             return
 
-        
+        countryballname = f"{await countryball.ball}"
+        if any(substring in countryballname.lower() for substring in [x.lower() for x in notallowed]):
+            return await interaction.response.send_message(f"You cannot use this")
 
         users_buff = self.buffs[interaction.user.id]
         async for dupe in self.add_balls(interaction, [countryball], users_buff):
@@ -858,6 +865,9 @@ class Battle(commands.GroupCog):
             if maxallowed != 0:
                 return await interaction.followup.send("Bulk adding is not available when there is a max amount limit!",ephemeral=True)
             player, _ = await Player.get_or_create(discord_id=interaction.user.id)
+            countryballname = f"{countryball}"
+            if any(substring in countryballname.lower() for substring in [x.lower() for x in notallowed]):
+                return await interaction.followup.send(f"You cannot bulk add this")
             filters = {}
             filters["player__discord_id"] = interaction.user.id
             filters["ball__tradeable"] = True
