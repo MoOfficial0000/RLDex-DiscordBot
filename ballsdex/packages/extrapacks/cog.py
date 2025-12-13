@@ -150,11 +150,6 @@ class extraPacks(commands.Cog):
             dzeni = random.choices(dropcredits, weights=cweights, k=1)[0]
         return [x for x in balls.values() if x.id==dzeni][0]
 
-    def get_permit(self):
-        permitname = f"{currencyname} Permit"
-        permitball = [x for x in balls.values() if x.country==permitname][0]
-        return permitball
-
     def get_random_relic(self):
         return random.randint(321,324) #321,324 main bot 1,4 test bot
     
