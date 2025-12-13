@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING
 
-from ballsdex.packages.currency.cog import currency #Import Class
+from ballsdex.packages.cashsystem.cog import cashsystem #Import Class
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
 
 
 async def setup(bot: "BallsDexBot"):
-    await bot.add_cog(currency(bot))
+    await bot.add_cog(cashsystem(bot))

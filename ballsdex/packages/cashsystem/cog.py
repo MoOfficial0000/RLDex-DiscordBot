@@ -88,7 +88,7 @@ async def upgrade_log_action(message: str, bot: BallsDexBot, console_log: bool =
 gradient = (CommonReq-T1Req)/(CommonRarity-T1Rarity)
 notallowed = ["zeni","credit","relic","dragon ball (","drop"]
 
-class currency(commands.Cog):
+class cashsystem(commands.Cog):
     """
     Zeni commands.
     """
@@ -567,8 +567,8 @@ class currency(commands.Cog):
         view.add_item(discord.ui.Button(style=discord.ButtonStyle.primary, emoji="⏫", label="Upgrade", disabled=True))
         await interaction.message.edit(view=view)
         currentbuff = permitball.attack_bonus
-        pricing = int(self.exponential_pricing(currentbuff+1))
-        if await self.pay(interaction, pricing):
+        currentpricing = int(self.exponential_pricing(currentbuff+1))
+        if await self.pay(interaction, currentpricing):
             currentbuff = currentbuff+1 #renew
             pricing = int(self.exponential_pricing(currentbuff+1))
             permitball.attack_bonus = currentbuff
@@ -601,7 +601,7 @@ class currency(commands.Cog):
             )
 
             await upgrade_log_action(
-                f"{interaction.user}({interaction.user.id}) Upgrade SPECIAL BUFFS from `+{currentbuff-1}%` to `+{currentbuff}%`\n{pricing} {currencyname}", #-1 so it doesnt use new values
+                f"{interaction.user}({interaction.user.id}) Upgrade SPECIAL BUFFS from `+{currentbuff-1}%` to `+{currentbuff}%`\n{currentpricing} {currencyname}", #-1 so it doesnt use new values
                 self.bot,
             ) 
 
