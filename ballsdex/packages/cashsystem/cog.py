@@ -749,7 +749,7 @@ class cashsystem(commands.Cog):
 
         await interaction.followup.send("Upgrader embed sent!")
 
-    @currencycommands.command(name="admin_give",description=f"Give currency to another user (admin).")
+    @currencycommands.command(name="admin_give",description=f"Give {currencyname.lower()} to another user (admin).")
     async def admin_give(
         self,
         interaction: discord.Interaction,
@@ -807,7 +807,7 @@ class cashsystem(commands.Cog):
 
         await interaction.followup.send(embed=embed)
 
-    @currencycommands.command(name="admin_count",description=f"Count the number of {currencyname.lower()} that a player has or how many exist in total.")
+    @currencycommands.command(name="admin_count",description=f"Count the number of {currencyname.lower()} that a player has or how many exist in total. (admin)")
     @app_commands.checks.has_any_role(*settings.root_role_ids)
     async def admin_count(
         self,
