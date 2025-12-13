@@ -168,6 +168,11 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
                 )
             return
         if user is not None:
+            if user.id in self.bot.blacklist:
+                await interaction.followup.send(
+                    "You cannot view the inventory of a blacklisted user.", ephemeral=True
+                )
+                return
             if await inventory_privacy(self.bot, interaction, player, user_obj) is False:
                 return
 
@@ -258,6 +263,11 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
                 await interaction.followup.send(
                     f"{user_obj.name} doesn't have any "
                     f"{extra_text}{settings.plural_collectible_name} yet."
+                )
+                return
+            if user.id in self.bot.blacklist:
+                await interaction.followup.send(
+                    "You cannot view the completion of a blacklisted user.", ephemeral=True
                 )
                 return
 
@@ -422,6 +432,15 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
             return
 
         if user is not None:
+            if user.id in self.bot.blacklist:
+                await interaction.followup.send(
+                    (
+                        "You cannot view the last caught "
+                        f"{settings.collectible_name} of a blacklisted user."
+                    ),
+                    ephemeral=True,
+                )
+                return
             if await inventory_privacy(self.bot, interaction, player, user_obj) is False:
                 return
 
@@ -800,6 +819,12 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
             )
             return
 
+        if user.id in self.bot.blacklist:
+            await interaction.followup.send(
+                "You cannot compare the inventory of a blacklisted user.", ephemeral=True
+            )
+            return
+
         if await inventory_privacy(self.bot, interaction, player, user) is False:
             return
 
@@ -915,13 +940,17 @@ class Balls(commands.GroupCog, group_name=settings.players_group_cog_name):
             .annotate(
                 total=RawSQL("COUNT(*)"),
                 traded=RawSQL("SUM(CASE WHEN trade_player_id IS NULL THEN 0 ELSE 1 END)"),
-                specials=RawSQL("SUM(CASE WHEN special_id IS NULL THEN 0 ELSE 1 END)"),
+                specials=RawSQL(
+                    "SUM(CASE WHEN special_id IS NULL OR special_id IN "
+                    "(SELECT id FROM special WHERE hidden = TRUE) THEN 0 ELSE 1 END)"
+                ),
             )
             .group_by("player_id")
         )
         specials = (
             BallInstance.filter(player=player)
             .exclude(special=None)
+            .exclude(special__hidden=True)
             .annotate(count=Count("id"))
             .group_by("special__name")
         )
