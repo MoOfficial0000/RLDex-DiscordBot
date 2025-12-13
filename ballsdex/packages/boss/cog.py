@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Optional, cast
 from discord.ui import Button, View
 
 from ballsdex.settings import settings
+from ballsdex.packages.battle.cog import SPECIALBUFFS, checkpermit
+from ballsdex.packages.cashsystem.cog import notallowed
 from ballsdex.core.utils.transformers import BallInstanceTransform, SpecialEnabledTransform
 from ballsdex.core.utils.transformers import BallEnabledTransform
 from ballsdex.core.utils.transformers import SpecialTransform, BallTransform
@@ -36,29 +38,10 @@ from ballsdex.core.models import (
     specials,
 )
 
-# IMPORTANT NOTES, READ BEFORE USING
-# 1. YOU MUST HAVE A SPECIAL CALLED "Boss" IN YOUR DEX, THIS IS FOR REWARDING THE WINNER.
-#    MAKE IT SO THE SPECIAL'S END DATE IS BEFORE TODAY'S DATE
-# 2. ONLY USE A COUNTRYBALL AS A BOSS in /boss start IF IT HAS BOTH THE COLLECTIBLE AND WILD CARDS STORED,
-#    OTHERWISE THIS WILL RESULT TO AN ERROR.
-#    Sometimes, you might create a non-spawnable ball using /admin balls create command, if that's the case
-#    there's a chance you may have not selected a wild card as it isn't required.
-#    Cards without wild cards do not work as a boss, as again, this will result in an error.
-#    If you are using a ball made from the admin panel for the boss, then it's fine, since admin panel requires wild card.
-# 3. You may change the shiny buffs below to suit your dex better, it's defaulted at 1000 HP & ATK Bonus
-# 4. Please report all bugs to user @moofficial on discord
-
-# HOW TO PLAY
-# Some commands can only be used by admins, these control the boss actions.
-# 1. Start the boss using /boss start command. (ADMINS ONLY)
-#    Choose a countryball to be the boss (required). Choose HP (Optional, Defaulted at 40000)
-# 2. Players can join using /boss join command.
-# 3. Start a round using /boss defend or /boss attack.(ADMINS ONLY)
-#    With /boss attack you can choose how much attack the boss deals (Optional, Defaulted to RNG from 0 to 2000)
-# 4. Players now choose an item to use against the boss using /boss select
-# 5. /boss end_round ends the current round and displays user permformance about the round (ADMIN ONLY)
-# 6. Step 3-5 is repeated until the boss' HP runs out, but you can end early with Step 7.
-# 7. /boss_conclude ends the boss battle and rewards the winner, but you can choose to *not* reward the winner (ADMIN ONLY)
+if settings.bot_name == "dragonballdex":
+    dropname = "Zeni Drop"
+else:
+    dropname = "Credits Drop"
 
 LOGCHANNEL = 1321913349125967896
 #Change this if you want to a different channel for boss logs
@@ -85,24 +68,34 @@ class JoinButton(View):
         self.join_button = Button(label="Join Boss Fight!", style=discord.ButtonStyle.primary, custom_id="join_boss")
         self.join_button.callback = self.button_callback
         self.add_item(self.join_button)
-
     async def button_callback(self, interaction: discord.Interaction):
+        user_id = interaction.user.id
         await interaction.response.defer(ephemeral=True, thinking=True)
         if not self.boss_cog.boss_enabled:
             return await interaction.followup.send("Boss is disabled", ephemeral=True)
-        if int(interaction.user.id) in self.boss_cog.disqualified:
+        if int(user_id) in self.boss_cog.disqualified:
             return await interaction.followup.send("You have been disqualified", ephemeral=True)
-        if [int(interaction.user.id),self.boss_cog.round] in self.boss_cog.usersinround:
+        if [int(user_id),self.boss_cog.round] in self.boss_cog.usersinround:
             return await interaction.followup.send("You have already joined the boss", ephemeral=True)
-        if self.boss_cog.round != 0 and interaction.user.id not in self.boss_cog.users:
+        if self.boss_cog.round != 0 and user_id not in self.boss_cog.users:
             return await interaction.followup.send(
                 "It is too late to join the boss, or you have died", ephemeral=True
             )
-        if interaction.user.id in self.boss_cog.users:
+        if user_id in self.boss_cog.users:
             return await interaction.followup.send(
                 "You have already joined the boss", ephemeral=True
             )
-        self.boss_cog.users.append(interaction.user.id)
+        
+        has_permit = await checkpermit(self.boss_cog, user_id, None)
+        if has_permit:
+            users_permit = self.boss_cog.permit_users[user_id]
+            users_buff = users_permit.attack_bonus
+            buff_multiplier = users_buff/100 + 1
+        else:
+            buff_multiplier = 1
+        self.boss_cog.buffs[user_id] = buff_multiplier
+        self.boss_cog.users.append(user_id)
+        
         await interaction.followup.send(
             "You have joined the Boss Battle!", ephemeral=True
         )
@@ -124,6 +117,8 @@ class Boss(commands.GroupCog):
         self.users = []
         self.usersdamage = []
         self.usersinround = []
+        self.permit_users = {}
+        self.buffs = {}
         self.currentvalue = ("")
         self.bossHP = 0
         self.picking = False
@@ -439,6 +434,9 @@ class Boss(commands.GroupCog):
                 f"You cannot use this {settings.collectible_name}.", ephemeral=True
             )
             return
+        countryballname = f"{await countryball.ball}"
+        if any(substring in countryballname.lower() for substring in [x.lower() for x in notallowed]):
+            return await interaction.followup.send(f"You cannot use this")
         if ball in self.balls:
             return await interaction.followup.send(
                 f"You cannot select the same {settings.collectible_name} twice", ephemeral=True
@@ -447,28 +445,21 @@ class Boss(commands.GroupCog):
             return
         self.balls.append(ball)
         self.usersinround.append([int(interaction.user.id),self.round])
+        users_buff = self.buffs[interaction.user.id]
+        bufftext1 = ""
+        bufftext2 = ""
+        countryballspecial = await countryball.special
+        countryballspecial = f"{countryballspecial}"
         if settings.bot_name == "dragonballdex":
             maxvalue = 240000
-            shinyvalue = 80000
-            mythicalvalue = 160000
-            ccvalue = 100000
-            diamondvalue = 120000
-            emeraldvalue = 200000
-            rubyvalue = 360000
-            eventvalue1 = 50000
-            eventvalue2 = 30000
-            blackvalue = eventvalue1
+            bot_key = "dragonballdex"
         else:
             maxvalue = 14000
-            shinyvalue = 5000
-            mythicalvalue = 12000
-            ccvalue = 6000
-            diamondvalue = 8000
-            emeraldvalue = 14000
-            rubyvalue = 18000
-            eventvalue1 = 3000
-            eventvalue2 = 2000
-            blackvalue = 1250
+            bot_key = "rocketleaguedex"
+        buff = SPECIALBUFFS.get(countryballspecial, {}).get(bot_key, 0)
+        if users_buff != 1:
+            bufftext1 = "**"
+            bufftext2 = "** ⚡"
         if ball.attack > maxvalue:
             ballattack = maxvalue
         elif ball.attack < 0:
@@ -482,20 +473,6 @@ class Boss(commands.GroupCog):
         else:
             ballhealth = ball.health
 
-        emoji_groups = {
-            ("✨",): shinyvalue,
-            ("🌌",): mythicalvalue,
-            ("🟨", "⬜"): 1500,
-            ("⬛",): blackvalue,
-            ("🟦", "🟥", "🟩", "💛", "🩵", "🟪", "💚", "🟧", "🩶", "🟫", "🩷"): 1000,
-            ("🚀", "🎩", "🐑", "🔮", "🇺🇸", "👨‍🌾", "🐉", "🚡", "🎉", "👑", "🍰"): eventvalue1,
-            ("☀", "☀️", "👻", "💥", "☃️", "🧧", "🧺", "🌙", "🐈", "🍁", "🍌"): eventvalue2,
-            ("🏆", "🌠"): ccvalue,
-            ("❇️", "❇"): emeraldvalue,
-            ("⚔️", "⚔", "💎"): diamondvalue,
-            ("♦️","♦"): rubyvalue,
-        }
-
         # Default base message
         originaldescription = ball.description(short=True, include_emoji=True, bot=self.bot)
         originalballattack = ballattack
@@ -504,17 +481,15 @@ class Boss(commands.GroupCog):
             f"{originaldescription} "
             f"has been selected for this round, with {originalballattack} ATK and {originalballhealth} HP"
         )
-
-        # Check emoji groups and apply bonuses
-        for emojis, value in emoji_groups.items():
-            if any(e in messageforuser for e in emojis):
-                ballattack += value
-                ballhealth += value
-                messageforuser = (
-                    f"{originaldescription} "
-                    f"has been selected for this round, with {originalballattack}+{value} ATK and {originalballhealth}+{value} HP"
-                )
-                break  # stop after first match
+        
+        if buff > 0:
+            buff = int(buff*users_buff)
+            ballattack += buff
+            ballhealth += buff
+            messageforuser = (
+                f"{originaldescription} "
+                f"has been selected for this round, with {originalballattack}{bufftext1}+{buff}{bufftext2} ATK and {originalballhealth}{bufftext1}+{buff}{bufftext2} HP"
+            )
 
             
         if not self.attack:
@@ -640,21 +615,71 @@ class Boss(commands.GroupCog):
 
         bosswinner = 0
         highest = 0
+        highestdmgplayer = 0
+        currencyawards = {}
+        for k in range(len(totalnum)):
+            if totalnum[k][1] > highest:
+                highest = totalnum[k][1]
+                highestdmgplayer = totalnum[k][0]
         if winner == "DMG":
-            for k in range(len(totalnum)):
-                if totalnum[k][1] > highest:
-                    highest = totalnum[k][1]
-                    bosswinner = totalnum[k][0]
+            bosswinner = highestdmgplayer
         elif winner == "LAST":
             bosswinner = self.lasthitter
-        else:
+        elif winner == "RNG":
             if len(totalnum) != 0:
                 bosswinner = totalnum[random.randint(0,len(totalnum)-1)][0]
+                
+        currencyawards = {player[0]: 1 for player in totalnum}
+
+        if bosswinner != 0:
+            currencyawards[bosswinner] = 3
+
+        if highestdmgplayer != 0 and highestdmgplayer != bosswinner:
+            currencyawards[highestdmgplayer] = 2
+
+        boss_lines = []
+        highest_lines = []
+        dropstext = ""
+        others_exist = False
+        
+        dropball = [x for x in balls.values() if x.country == dropname][0]
+        async def givedrops(n,player_id):
+            for i in range(n):
+                player, created = await Player.get_or_create(discord_id=player_id)
+                instance = await BallInstance.create(
+                    ball=dropball,
+                    player=player,
+                    special=None,
+                    attack_bonus=0,
+                    health_bonus=0,
+                )
+
+        for player, amount in currencyawards.items():
+            await givedrops(amount,player)
+            if amount == 3:
+                boss_lines.append(f"<@{player}> (Winner): 3× {dropname}")
+            elif amount == 2:
+                highest_lines.append(f"<@{player}> (Highest Damage): 2× {dropname}")
+            else:
+                others_exist = True
+
+        for line in boss_lines:
+            dropstext += f"\n-# - {line}"
+        for line in highest_lines:
+            dropstext += f"\n-# - {line}"
+        if others_exist:
+            dropstext += f"\n-# - Other alive players (each): 1× {dropname}"
+
+        if dropstext != "":
+            dropstext = f"\nDrop rewards:{dropstext}\n-# Use `/drop open` to open your drops!\n\n-# Use `/upgrade stats` or `/upgrade buffs` to get even stronger!"
+        else:
+            dropstext = f"-# Use `/upgrade stats` or `/upgrade buffs` to get even stronger!"
+                
         if bosswinner == 0:
             await interaction.followup.send(
                 f"Boss successfully concluded", ephemeral=True
             )
-            await interaction.channel.send(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has won the Boss Battle!")
+            await interaction.channel.send(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has won the Boss Battle!\n\n{dropstext}")
             with open("totalstats.txt", "w") as file:
                 file.write(f"{total}{total2}")
             with open("totalstats.txt", "rb") as file:
@@ -674,10 +699,11 @@ class Boss(commands.GroupCog):
             self.bosswilda = []
             self.disqualified = []
             self.lasthitter = 0
+            self.buffs.clear()
             return
         if winner != "None":
             player, created = await Player.get_or_create(discord_id=bosswinner)
-            special = special = [x for x in specials.values() if x.name == "Boss"][0]
+            special = [x for x in specials.values() if x.name == "Boss"][0]
             instance = await BallInstance.create(
                 ball=self.bossball,
                 player=player,
@@ -690,12 +716,12 @@ class Boss(commands.GroupCog):
             )
             await interaction.channel.send(
                 f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\n<@{bosswinner}> has won the Boss Battle!\n\n"
-                f"`Boss` `{self.bossball}` {settings.collectible_name} was successfully given.\n"
+                f"`Boss` `{self.bossball}` {settings.collectible_name} was successfully given.\n\n{dropstext}\n"
             )
             bosswinner_user = await self.bot.fetch_user(int(bosswinner))
 
             await log_action(
-                f"`BOSS REWARDS` gave {settings.collectible_name} {self.bossball.country} to {bosswinner_user}. "
+                f"`BOSS REWARDS` gave {settings.collectible_name} {self.bossball.country} to {bosswinner_user}."
                 f"Special=Boss "
                 f"ATK=0 HP=0",
                 self.bot,
@@ -704,7 +730,8 @@ class Boss(commands.GroupCog):
             await interaction.followup.send(
                 f"Boss successfully concluded", ephemeral=True
             )
-            await interaction.channel.send(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has been defeated!")
+            await interaction.channel.send(f"# Boss has concluded {self.bot.get_emoji(self.bossball.emoji_id)}\nThe boss has been defeated!\n\n{dropstext}")
+        
         with open("totalstats.txt", "w") as file:
             file.write(f"{total}{total2}")
         with open("totalstats.txt", "rb") as file:
@@ -724,6 +751,7 @@ class Boss(commands.GroupCog):
         self.bosswilda = []
         self.disqualified = []
         self.lasthitter = 0
+        self.buffs.clear()
 
     @bossadmin.command(name="hackjoin")
     @app_commands.checks.has_any_role(*settings.root_role_ids, *settings.admin_role_ids)
@@ -768,6 +796,14 @@ class Boss(commands.GroupCog):
                 "This user is already in the boss battle.", ephemeral=True
             )
         self.users.append(user_id)
+        has_permit = await checkpermit(self, user_id, None)
+        if has_permit:
+            users_permit = self.permit_users[user_id]
+            users_buff = users_permit.attack_bonus
+            buff_multiplier = users_buff/100 + 1
+        else:
+            buff_multiplier = 1
+        self.buffs[user_id] = buff_multiplier
         if user_id in self.disqualified:
             self.disqualified.remove(user_id)
         await interaction.followup.send(
