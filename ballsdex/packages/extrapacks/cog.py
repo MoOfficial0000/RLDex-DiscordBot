@@ -252,6 +252,8 @@ class extraPacks(commands.Cog):
         if emoji:
             embed.set_thumbnail(url=emoji.url)
 
+        embed.set_footer(text="Use `/wish craft relics` to use your relics!")
+
         await interaction.followup.send(embed=embed, file=file)
 
     async def handle_zeni_drop(self, interaction, drop, drop_type, emoji):
@@ -273,6 +275,8 @@ class extraPacks(commands.Cog):
 
         if emoji:
             embed.set_thumbnail(url=emoji.url)
+
+        embed.set_footer(text=f"You can spend {currencyname} on upgrades!\nUse `/upgrade explain` for more information.")
 
         await interaction.followup.send(embed=embed, file=file)
 
@@ -653,6 +657,8 @@ class extraPacks(commands.Cog):
             )
             if emoji:
                 embed.set_thumbnail(url=emoji)
+
+            embed.set_footer(text="Use `/drop open` or `/drop bulk_open` to open your drops!")
             
             await interaction.followup.send(embed=embed)
             
@@ -750,7 +756,12 @@ class extraPacks(commands.Cog):
             emoji = self.bot.get_emoji(ball.emoji_id)
             if emoji:
                 embed.set_image(url=emoji.url)
-            
+
+            if settings.bot_name == "dragonballdex":
+                embed.set_footer(text="Use `/wish start` to use your dragon balls!")
+            else:
+                embed.set_footer(text="Use `/drop open` to open!")
+                
             await interaction.followup.send(embed=embed)
             
         except Exception as e:
