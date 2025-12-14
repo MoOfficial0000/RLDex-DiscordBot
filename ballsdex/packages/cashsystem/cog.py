@@ -102,7 +102,7 @@ class cashsystem(commands.Cog):
     )
 
     upgradecommands = app_commands.Group(
-        name="upgrade", description=f'upgrade commands'
+        name="upgrade", description=f'Upgrade commands'
     )
 
     def get_zeni(self,zeninote):
@@ -449,11 +449,56 @@ class cashsystem(commands.Cog):
 
         user_id = interaction.user.id
         if user_id not in self.permit_users:
-            if not self.check_permit(interaction):
+            if not await self.check_permit(interaction):
                 return
 
-        #this is just so it checks if player agreed to the permit
-        #no need to check for deleted or transferred error as permit ball isnt actually used here.
+        permitball = self.permit_users[user_id]
+
+        # Incase it got hard deleted
+        try:
+            permitball = await BallInstance.get(id=permitball.id)
+        except DoesNotExist:
+            # Remove bad cache entry
+            self.permit_users.pop(user_id, None)
+            await log_action(
+                f"{user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                interaction.client,
+            )
+
+            # Try verifying again
+            if not await self.check_permit(interaction):
+                return
+
+            permitball = self.permit_users[user_id]
+
+        # Incase it got soft deleted
+        if permitball.deleted: #this will likely never be true, only used incase DoesNotExist did not trigger for soft deleted balls for any reason
+            self.permit_users.pop(user_id, None)
+            await log_action(
+                f"{user_id}'s {permitball}: DELETED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                interaction.client,
+            )
+
+            if not await self.check_permit(interaction):
+                return
+
+            permitball = self.permit_users[user_id]
+
+        # Incase it got transferred by an admin
+        user_player, _ = await Player.get_or_create(discord_id=user_id)
+        
+        if permitball.player_id != user_player.id:
+            self.permit_users.pop(user_id, None)
+            await log_action(
+                f"{user_id}'s {permitball}: TRANSFERRED ERROR\nPopped from `self.permit_users`, retrying `self.check_permit`\n",
+                interaction.client,
+            )
+
+            if not await self.check_permit(interaction):
+                return
+
+            permitball = self.permit_users[user_id]
+        currentupgradecount = permitball.health_bonus
                 
         countryballname = f"{await countryball.ball}"
 
@@ -547,7 +592,9 @@ class cashsystem(commands.Cog):
         
         if view.value:
             if await self.pay(interaction, total_cost):
-                resultupgradetext = f"{settings.collectible_name.capitalize()} successfully changed!\n{upgradetext}"
+                permitball.health_bonus += 1
+                await permitball.save()
+                resultupgradetext = f"{settings.collectible_name.capitalize()} successfully changed!\n{upgradetext}\n-# You have completed a total of **{currentupgradecount+1}** {settings.collectible_name} stat changes!"
                 
                 for key, value in updates.items():
                     setattr(countryball, key, value)
@@ -565,6 +612,7 @@ class cashsystem(commands.Cog):
         await interaction.response.defer(thinking=True,ephemeral=True)
         view = discord.ui.View()
         view.add_item(discord.ui.Button(style=discord.ButtonStyle.primary, emoji="⏫", label="Upgrade", disabled=True))
+        view.add_item(discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="❓", label="Explain this to me!", disabled=True))
         await interaction.message.edit(view=view)
         currentbuff = permitball.attack_bonus
         currentpricing = int(self.exponential_pricing(currentbuff+1))
@@ -592,12 +640,12 @@ class cashsystem(commands.Cog):
 
             embed.add_field(
                 name="💰 Upgrade Cost:",
-                value=f"**{pricing}** {currencyname}",
+                value=f"**{pricing}** {currencyname}\n-# You can get {currencyname} by using the `/daily` command.\n\u200b",
                 inline=False
             )
             
             embed.set_footer(
-                text=f"💡 Your special buffs are currently **boosted an extra {currentbuff}% for you!**"
+                text=f"Your special buffs are currently **boosted** an extra {currentbuff}% for you!⚡\n💡 Use `/special_buffs` to check your buffs for each special."
             )
 
             await upgrade_log_action(
@@ -616,6 +664,9 @@ class cashsystem(commands.Cog):
             new_upgrade_button = discord.ui.Button(
                 style=discord.ButtonStyle.primary, emoji="⏫", label="Upgrade"
             )
+            new_explain_button = discord.ui.Button(
+                style=discord.ButtonStyle.secondary, emoji="❓", label="Explain this to me!"
+            )
             original_user = interaction.user
             async def new_callback(i: discord.Interaction):
                 if i.user != original_user:
@@ -623,10 +674,33 @@ class cashsystem(commands.Cog):
                     return
                 await self.buffupdate(i,permitball)
 
+            async def new_explain_callback(button_interaction: discord.Interaction):
+                if button_interaction.user != original_user:
+                    await button_interaction.response.send_message(
+                        "`/upgrade explain` → `explain:/upgrade buffs`", ephemeral=True
+                    )
+                    return
+                
+                new_explain_button.disabled = True
+                new_upgrade_button.disabled = True
+                await button_interaction.response.edit_message(view=view)
+                
+                await self.explain_logic(
+                    button_interaction,
+                    "BUFF"
+                )
+                await asyncio.sleep(5)
+                
+                new_explain_button.disabled = False
+                new_upgrade_button.disabled = False
+                await button_interaction.followup.edit_message(message_id=button_interaction.message.id, view=view)
+
             new_upgrade_button.callback = new_callback
+            new_explain_button.callback = new_explain_callback
 
             view = discord.ui.View(timeout=60)
             view.add_item(new_upgrade_button)
+            view.add_item(new_explain_button)
             await interaction.message.edit(view=view)
 
         
@@ -728,6 +802,10 @@ class cashsystem(commands.Cog):
             style=discord.ButtonStyle.primary, emoji="⏫", label="Upgrade"
         )
 
+        explain_button = discord.ui.Button(
+            style=discord.ButtonStyle.secondary, emoji="❓", label="Explain this to me!"
+        )
+
         async def protected_callback(button_interaction: discord.Interaction):
             if button_interaction.user.id != user_id:
                 await button_interaction.response.send_message(
@@ -736,11 +814,35 @@ class cashsystem(commands.Cog):
                 return
             await self.buffupdate(button_interaction, permitball)
 
+        async def explain_callback(button_interaction: discord.Interaction):
+            if button_interaction.user.id != user_id:
+                await button_interaction.response.send_message(
+                    "`/upgrade explain` → `explain:/upgrade buffs`", ephemeral=True
+                )
+                return
+            
+            explain_button.disabled = True
+            upgrade_button.disabled = True
+            await button_interaction.response.edit_message(view=view)
+            
+            await self.explain_logic(
+                button_interaction,
+                "BUFF"
+            )
+            await asyncio.sleep(5)
+            
+            explain_button.disabled = False
+            upgrade_button.disabled = False
+            await button_interaction.followup.edit_message(message_id=button_interaction.message.id, view=view)
+
         upgrade_button.callback = protected_callback
+
+        explain_button.callback = explain_callback
 
         view = discord.ui.View(timeout=60)
         
         view.add_item(upgrade_button)
+        view.add_item(explain_button)
 
         await interaction.channel.send(
             embed=embed,
@@ -852,7 +954,251 @@ class cashsystem(commands.Cog):
             name=authorname, icon_url=iconurl
         )
         await interaction.followup.send(embed=embed)
+
+    @upgradecommands.command(name="leaderboard", description=f"Display leaderboard of highest special buff levels or most stat changes.")
+    @app_commands.checks.cooldown(1, 60, key=lambda i: i.user.id)
+    @app_commands.choices(
+        option=[
+            app_commands.Choice(name="Highest Special Buff Level", value="BUFF"),
+            app_commands.Choice(name=f"Most {settings.collectible_name.capitalize()} Stat Changes", value="STAT"),
+        ]
+    )
+    async def leaderboard(
+        self,
+        interaction: discord.Interaction,
+        option: str,
+    ):
+        if interaction.response.is_done():
+            return
+        
+        assert interaction.guild
+
+        await interaction.response.defer(thinking=True)
+
+        sfilters = {}
+        permitball = self.get_permit()
+        sfilters["ball"] = permitball
+        sfilters["server_id"] = 1238814628327325716
+        permitlist = await BallInstance.filter(**sfilters).prefetch_related("ball")
+
+        permitlist.sort(key=lambda ball: ball.attack_bonus if option == "BUFF" else ball.health_bonus, reverse=True)
+
+        leaderboardpermit = permitlist[:10]
+        leaderboardtitle = "Top Users: Highest Special Buff Levels" if option == "BUFF" else f"Top Users: Most {settings.collectible_name.capitalize()} Stat Changes"
+
+        user_ids = [await ball.player for ball in leaderboardpermit]
+        users = await asyncio.gather(*[self.bot.fetch_user(uid) for uid in user_ids])
+        
+        leaderboarddescription = ""
+        for n, (ball, user) in enumerate(zip(leaderboardpermit, users), start=1):
+            subtext = "Buff Level:" if option=="BUFF" else "Changed"
+            balldot = f"+**{ball.attack_bonus}% ⚡**" if option=="BUFF" else f"**{ball.health_bonus}** {settings.collectible_name} stats!"
+            # wanting to add promo to other commands, and fix if stamements to one
+            leaderboarddescription += f"**{n}. {user.name}** {subtext} {balldot}\n"
             
+        embed = discord.Embed(
+            title=f"🏆 {leaderboardtitle}",
+            description=leaderboarddescription,
+            color=discord.Color.from_rgb(178, 34, 34)
+        )
+
+        first_permit = leaderboardpermit[0]
+        first_user = await self.bot.fetch_user(await first_permit.player)
+        avatar_url = first_user.avatar.url 
+        embed.set_thumbnail(url=avatar_url)
+
+        footertext = "Not sure what this leaderboard is ranking? Use `/upgrade explain`"
+        embed.set_footer(text=footertext)
+
+        explain_button = discord.ui.Button(
+            style=discord.ButtonStyle.secondary, emoji="❓", label="Explain this to me!"
+        )
+
+        async def explain_callback(button_interaction: discord.Interaction):
+            if button_interaction.user.id != interaction.user.id:
+                await button_interaction.response.send_message(
+                    "`/upgrade explain` → `explain:/upgrade leaderboard`", ephemeral=True
+                )
+                return
+            
+            explain_button.disabled = True
+            await button_interaction.response.edit_message(view=view)
+            
+            await self.explain_logic(
+                button_interaction,
+                "LEAD"
+            )
+            await asyncio.sleep(5)
+            
+            explain_button.disabled = False
+            await button_interaction.followup.edit_message(message_id=button_interaction.message.id, view=view)
+
+        explain_button.callback = explain_callback
+
+        view = discord.ui.View(timeout=60)
+        
+        view.add_item(explain_button)
+
+        await interaction.followup.send(embed=embed, view=view)
     
+    async def explain_logic(
+        self,
+        interaction,
+        explain,
+    ):
+        titletext = "🔧 Upgrade System Guide"
+        statsname = "🧬`/upgrade stats`"
+        buffsname = "✨`/upgrade buffs`"
+        leaderboardname = "🏆`/upgrade leaderboard`"
+        if explain == None:
+            descriptiontext = f"This guide explains how the **/upgrade** commands work and what each option does. These commands let you spend **{currencyname}** to improve your **{settings.plural_collectible_name}** and your special buffs."
+        else:
+            descriptiontext = "For the full guide, use `/upgrade explain` without selecting the `explain:` option"
+        descriptiontext += "\n-------------------------------------------\n"
+        if settings.bot_name == "dragonballdex":
+            a_collectible = "a character"
+            shinybuff = "80,000"
+            shiny1 = "80,800"
+            shiny10 = "88,000"
+            mythicalbuff = "160,000"
+            mythical1 = "161,600"
+            mythical10 = "176,000"
+        else:
+            a_collectible = "an item"
+            shinybuff = "5,000"
+            shiny1 = "5,050"
+            shiny10 = "5,500"
+            mythicalbuff = "12,000"
+            mythical1 = "12,120"
+            mythical10 = "13,200"
+        collectible = settings.collectible_name
+        
+        statstext = f"This command lets you **upgrade or downgrade {a_collectible}'s stats**.\n\n"
+        statstext += f"**What you can change**\n"
+        statstext += f"- **ATK (Attack Bonus)**\n- **HP (Health Bonus)**\n"
+        statstext += f"You can change **one or both stats** in a single command."
+        
+        statsname2 = f"**How it works**"
+        statstext2 = f"- You select a {collectible} and set a **new ATK and/or HP value**\n"
+        statstext2 += f"- The cost is based on:\n"
+        statstext2 += f"  - The {collectible}'s rarity\n"
+        statstext2 += f"  - How big the stat change is (the bigger changes cost more)\n"
+        statstext2 += f"- **Downgrading stats still cost {currencyname}**, so be careful before confirming."
+
+        statsname3 = f"**Important notes**"
+        statstext3 = f"- Each successful stat change is **recorded**.\n"
+        statstext3 += f"- The total number of stat-changes you've made is tracked and used for the leaderboard.\n"
+        statstext3 += f"- You must confirm the change before {currencyname} is spent."
+
+        statsname4 = f"**Example**"
+        statstext4 = f"- Changing a {collectible} from `+2 ATK / +7 HP` → `+20 ATK / +50 HP`\n"
+        statstext4 += f"- You pay {currencyname}\n"
+        statstext4 += f"- Your stat-changes count increases by **1**"
 
 
+        buffstext = f"This command upgrades your **Special buffs**, which makes **your specials stronger**.\n\n"
+        buffstext += f"**What are special buffs?**\n"
+        buffstext += f"- Each special has a base buff value when used in battles.\n- For example: **- Shiny** → +{shinybuff} buff **- Mythical** → +{mythicalbuff} buff\n"
+        buffstext += f"- Your **buff level increases these values by a percentage**."
+        
+        buffsname2 = f"**How buff levels work**"
+        buffstext2 = f"- You start at **+0%**\n"
+        buffstext2 += f"- Each upgrade increases your buff level by **+1%**\n"
+        buffstext2 += f"- The percentage is applies to **all specials**"
+
+        buffsname3 = f"**Example**"
+        buffstext3 = f"- At **+1% buff level**: - Shiny: `{shinybuff} → {shiny1}` - Mythical: `{mythicalbuff} → {mythical1}`\n"
+        buffstext3 += f"- At **+10% buff level**: - Shiny: `{shinybuff} → {shiny10}` - Mythical: `{mythicalbuff} → {mythical10}`"
+        
+        buffsname4 = f"**Cost scaling**"
+        buffstext4 = f"- Upgrades cost {currencyname}\n"
+        buffstext4 += f"- **Each level costs more than the last** (prices increase as you go)\n"
+        buffstext4 += f"- You can use `/special_buffs` to track your current buffs for each special."
+
+        leaderboardtext = f"This command shows the **Top 10 players** in two different categories.\n\n"
+        leaderboardtext += f"**Leaderboard options**\n"
+        leaderboardtext += f"- **Highest Special Buff Level**\n"
+        leaderboardtext += f"  - Ranks players by their **buff level from** `/upgrade buffs`\n"
+        leaderboardtext += f"  - Shows who has the strongest overall special buffs\n"
+        leaderboardtext += f"- **Most {collectible} Stat Changes**\n"
+        leaderboardtext += f"  - Ranks players by how many times they've used `upgrade stats`\n"
+        leaderboardtext += f"  - Shows who has upgraded or changed {collectible.lower()} stats the most"
+        
+        zeniname = f"**💰 Getting {currencyname}**"
+        zenitext = f"- You'll need {currencyname} for all upgrades.\n"
+        zenitext += f"- Use the `/daily` command to earn {currencyname} (You must be in the main server)\n"
+        zenitext += f"- Plan upgrades carefully, since **all purchases are non-refundable**"
+
+        summaryname = f"**🔗 Summary**"
+        summarytext = f"- `/upgrade stats` → Change ATK/HP of {collectible} (tracks total changes)\n"
+        summarytext += f"- `/upgrade buffs` → Increase your special buffs\n"
+        summarytext += f"- `/upgrade leaderboard` → See top players in buffs or stat changes\n"
+        summarytext += f"Upgrade wisely and climb the leaderboard! 🔝"
+        
+
+        entries = []
+        
+        if explain == None or explain == "STAT":
+            statsentry = (statsname, statstext)
+            statsentry2 = (statsname2, statstext2)
+            statsentry3 = (statsname3, statstext3)
+            statsentry4 = (statsname4, statstext4)
+            entries.append(statsentry)
+            entries.append(statsentry2)
+            entries.append(statsentry3)
+            entries.append(statsentry4)
+        
+        if explain == None or explain == "BUFF":
+            buffsentry = (buffsname, buffstext)
+            buffsentry2 = (buffsname2, buffstext2)
+            buffsentry3 = (buffsname3, buffstext3)
+            buffsentry4 = (buffsname4, buffstext4)
+            entries.append(buffsentry)
+            entries.append(buffsentry2)
+            entries.append(buffsentry3)
+            entries.append(buffsentry4)
+            
+        if explain == None or explain == "LEAD":
+            leaderboardentry = (leaderboardname, leaderboardtext)
+            entries.append(leaderboardentry)
+            
+        zenientry = (zeniname, zenitext) # always show
+        entries.append(zenientry)
+        
+        if explain == None:
+            summaryentry = (summaryname, summarytext)
+            entries.append(summaryentry)
+            
+        per_page = 4
+        
+        source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
+        source.embed.title = titletext
+        source.embed.description = descriptiontext
+    
+        source.embed.colour = discord.Colour.from_rgb(190,100,190)
+        source.embed.set_author(
+            name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url
+        )
+
+        pages = Pages(source=source, interaction=interaction, compact=True)
+        await pages.start(
+            ephemeral=True,
+        )           
+    
+    @upgradecommands.command(name="explain", description=f"Explain what the upgrade commands do.")
+    @app_commands.checks.cooldown(1, 5, key=lambda i: i.user.id)
+    @app_commands.choices(
+        explain=[
+            app_commands.Choice(name="/upgrade stats", value="STAT"),
+            app_commands.Choice(name="/upgrade buffs", value="BUFF"),
+            app_commands.Choice(name="/upgrade leaderboard", value="LEAD"),
+        ]
+    )
+    async def explain(
+        self,
+        interaction: discord.Interaction,
+        explain: str | None = None,
+    ):
+        
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        await self.explain_logic(interaction,explain)
