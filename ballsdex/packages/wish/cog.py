@@ -199,7 +199,6 @@ def update_embed(
         value=gen_deck(opponent_balls, opponent_ogballs,maxallowed),
         inline=True,
     )
-    #embed.set_footer(text="Use `/hourly` to earn dragon balls")
     return embed
 
 
