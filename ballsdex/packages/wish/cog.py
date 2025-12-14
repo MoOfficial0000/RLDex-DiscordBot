@@ -62,7 +62,7 @@ porungadaima1 = ["<:DemonRealmDB1:1355509715248877638>","<:DemonRealmDB2:1355509
 toronbo1 = ["<:CerealianDB1:1355508560284614737>","<:CerealianDB2:1355508557537218791>","<:Toronbo:1322958774088106077>"]
 ultimateshenron1 = ["<:OneStarBlackStarDragonball:1439035486357422194>","<:TwoStarBlackStarDragonball:1439035463137755357>","<:ThreeStarBlackStarDragonball:1439035445328613386>","<:FourStarBlackStarDragonball:1439035525905387660>","<:FiveStarBlackStarDragonball:1439035398159335424>","<:SixStarBlackStarDragonball:1439035506724962304>","<:SevenStarBlackStarDragonball:1439035426747842660>","<:UltimateShenron:1437982333507735743>"]
 
-relics = [321,322,323,324]
+relics = [321,322,323,324] #321,322,323,324 main dex
 
 @dataclass
 class BattleInstance:
@@ -174,10 +174,11 @@ def update_embed(
     embed = discord.Embed(
         title=f"{settings.collectible_name.title()} Wishing {emoji2} {emoji1}",
         description=(
-            f"Use '/wish add' and '/wish remove' to add/remove requirements\n"
+            f"Use `/wish add`, `/wish remove` or `/wish bulk add` to add/remove requirements.\n"
             "Requires:\n"
-            "-Activation Dragon (Will **not** be deleted after the wish)\n"
-            "-Dragon Balls (Will be deleted after the wish)\n"
+            "- Activation Dragon (Will **__not be deleted__** after the wish)\n"
+            "- Dragon Balls (obtainable from `/hourly`)\n"
+            "Dragon Balls **__will be deleted__** after the wish\n"
             "Click the tick button when ready.\n-------\n"
             "Rewards:\n"
             f"{rewardtext}\n"
@@ -198,6 +199,7 @@ def update_embed(
         value=gen_deck(opponent_balls, opponent_ogballs,maxallowed),
         inline=True,
     )
+    #embed.set_footer(text="Use `/hourly` to earn dragon balls")
     return embed
 
 
@@ -301,10 +303,11 @@ class Wish(commands.GroupCog):
                 reliccounts[r] = reliccheckcount
             embed = discord.Embed(
                 title=f"Relic Crafting",
-                description=f"Craft the 4 relics to receive a random 🌠Relicborne character!"
+                description=f"Craft the 4 relics to receive a random 🌠Relicborne character\nUse `/wish start` or `/daily` to earn Relics.",
             )
             embed.color=discord.Colour.from_rgb(82,92,145) 
             embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
+            embed.set_footer(text="Incomplete relic set? Use `/wish craft relics_2`.")
 
             for r in range(len(relics)):
                 relicname=[x for x in balls.values() if x.id == (relics)[r]][0]
@@ -376,10 +379,11 @@ class Wish(commands.GroupCog):
                 diffnoofrelics += 1
         embed = discord.Embed(
             title=f"Relic Crafting",
-            description=f"Craft the 4 relics to receive a random 🌠Relicborne character!"
+            description=f"Craft the 4 relics to receive a random 🌠Relicborne character!\nUse `/wish start` or `/daily` to earn Relics."
         )
         embed.color=discord.Colour.from_rgb(82,92,145) 
         embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
+        embed.set_footer(text="Incomplete relic set? Use `/wish craft relics_2`.")
         for r in range(len(relics)):
             relicname=[x for x in balls.values() if x.id == (relics)[r]][0]
             embed.add_field(
@@ -625,6 +629,16 @@ class Wish(commands.GroupCog):
                     colorvalue1 = discord.Color.dark_orange()
                 else:
                     await realball.delete()
+            for ball in guild_battle.battle.p1_balls:
+                realball = await BallInstance.get(id=ball.pk).prefetch_related(
+                    "player"
+                )
+                playerr = await realball.player
+                if f"{playerr}" != f"{interaction.user.id}":
+                    textvalue1 = "⚠️ Activation dragon does not belong to you.\nThis wish has been cancelled."
+                    colorvalue1 = discord.Color.dark_orange()
+                else:
+                    await realball.unlock()
         noofrewards = maxallowed[0]
         if maxallowed[1]=="EDB":
             shiny_percentage = -1
