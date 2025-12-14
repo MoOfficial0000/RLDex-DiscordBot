@@ -302,7 +302,7 @@ class Wish(commands.GroupCog):
                 reliccounts[r] = reliccheckcount
             embed = discord.Embed(
                 title=f"Relic Crafting",
-                description=f"Craft the 4 relics to receive a random 🌠Relicborne character\nUse `/wish start` or `/daily` to earn Relics.",
+                description=f"Craft the 4 relics to receive a random 🌠Relicborne character!\nRelics are obtainable from `/wish start` or `/daily`.",
             )
             embed.color=discord.Colour.from_rgb(82,92,145) 
             embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
@@ -378,7 +378,7 @@ class Wish(commands.GroupCog):
                 diffnoofrelics += 1
         embed = discord.Embed(
             title=f"Relic Crafting",
-            description=f"Craft the 4 relics to receive a random 🌠Relicborne character!\nUse `/wish start` or `/daily` to earn Relics."
+            description=f"Craft the 4 relics to receive a random 🌠Relicborne character!\nRelics are obtainable from `/wish start` or `/daily`."
         )
         embed.color=discord.Colour.from_rgb(82,92,145) 
         embed.set_author(name=interaction.user, icon_url=interaction.user.avatar.url)
