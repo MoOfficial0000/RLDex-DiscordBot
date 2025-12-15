@@ -1007,9 +1007,6 @@ class cashsystem(commands.Cog):
         avatar_url = first_user.avatar.url 
         embed.set_thumbnail(url=avatar_url)
 
-        footertext = "Not sure what this leaderboard is ranking? Use `/upgrade explain`"
-        embed.set_footer(text=footertext)
-
         explain_button = discord.ui.Button(
             style=discord.ButtonStyle.secondary, emoji="❓", label="Explain this to me!"
         )
