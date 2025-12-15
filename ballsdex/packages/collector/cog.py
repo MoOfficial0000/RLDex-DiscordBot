@@ -85,7 +85,7 @@ else:
     sCommonRarity = 233
 sRoundingOption = 5
 
-uncountablespecials = ("First natural shiny","Champion Edition Goku","Champion Edition Vegeta","Ruby","Boss","Staff","Emerald","Shiny","Mythical","Relicborne","Collector","Diamond","Xeno Goku Black","Event Quitela","Ultra Gogito","Goku Day","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna")
+uncountablespecials = ("First natural shiny","Champion Edition Goku","Champion Edition Vegeta","Ruby","Boss","Staff","Emerald","Shiny","Mythical","Relicborne","Collector","Diamond","Xeno Goku Black","Champion Editon Quitela","Ultra Gogito","Goku Day","Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna")
 log = logging.getLogger("ballsdex.packages.collector.cog")
 
 gradient = (CommonReq-T1Req)/(CommonRarity-T1Rarity)
