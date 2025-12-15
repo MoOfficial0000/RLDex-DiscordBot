@@ -593,7 +593,7 @@ class extraPacks(commands.Cog):
             await interaction.followup.send(
                 f":warning: You don't meet all the requirements for daily and hourly commands! :warning:\n\n"
                 f"Requirements:\n"
-                f"Minimum 10% self-caught completion {falsecheck(compreq)}\n-# (You currently have **{comp_percentage}%**)\n"
+                f"At least 10% self-caught completion {falsecheck(compreq)}\n-# (You currently have **{comp_percentage}%**)\n"
                 f"At least 10 users traded with {falsecheck(tradereq)}\n-# (You currently have **{lentrade_partners}**)"
                 )
             return
@@ -705,7 +705,7 @@ class extraPacks(commands.Cog):
             await interaction.followup.send(
                 f":warning: You don't meet all the requirements for daily and hourly commands! :warning:\n\n"
                 f"Requirements:\n"
-                f"10% self-caught completion {falsecheck(compreq)}\n-# (You currently have **{comp_percentage}%**)\n"
+                f"At least 10% self-caught completion {falsecheck(compreq)}\n-# (You currently have **{comp_percentage}%**)\n"
                 f"At least 10 users traded with {falsecheck(tradereq)}\n-# (You currently have **{lentrade_partners}**)"
                 )
             return
