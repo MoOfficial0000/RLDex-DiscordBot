@@ -571,7 +571,7 @@ class Wish(commands.GroupCog):
 
         source = FieldPageSource(entries, per_page=per_page, inline=False, clear_description=False)
         usermention = user_obj.mention
-        source.embed.description=f"**Dragon Ball completion of {usermention}**\n-# Use '/dbz completion' for the full dex completion."
+        source.embed.description=f"**Dragon Ball completion of {usermention}**\n-# Dragon Balls are obtainable from `/hourly`.\n-# Use `/dbz completion` for the full dex completion."
         source.embed.colour = discord.Colour.from_rgb(0,0,255)
         source.embed.set_author(name=user_obj.display_name, icon_url=user_obj.display_avatar.url)
         
