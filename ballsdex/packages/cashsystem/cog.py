@@ -139,6 +139,7 @@ class cashsystem(commands.Cog):
     def map_rarity_to_req(self, rarity):
         exponent = 2.5
         norm = (rarity - T1Rarity) / (CommonRarity - T1Rarity)
+        norm = max(0, min(1, norm))
         return CommonReq + (T1Req - CommonReq) * (1 - norm) ** exponent
 
     def exponential_pricing(self, x):
@@ -507,13 +508,6 @@ class cashsystem(commands.Cog):
                 
         if new_health_bonus == None and new_attack_bonus == None:
             return await interaction.followup.send(f"Must provide `new_attack_bonus` and/or `new_health_bonus`")
-        
-        if await countryball.is_locked() == True:
-            return await interaction.followup.send(
-                f"This {settings.collectible_name} is currently locked for a trade. "
-                "Please try again later.",
-                ephemeral=True,
-            )
 
         if (await countryball.ball).enabled:
             fullcost = self.map_rarity_to_req((await countryball.ball).rarity)
@@ -568,7 +562,14 @@ class cashsystem(commands.Cog):
             f"----> "
             f"(`{new_atk_sign}{new_attack}ATK`,`{new_hp_sign}{new_health}HP`)"
         )
-                
+        if await countryball.is_locked() == True:
+            return await interaction.followup.send(
+                f"This {settings.collectible_name} is currently locked for a trade. "
+                "Please try again later.",
+                ephemeral=True,
+            )
+        if countryball.player_id != user_player.id:
+            return await interaction.followup.send("This {settings.collectible_name} doesn't belong to you.")
         await countryball.lock_for_trade()
         total_cost = (health_cost+attack_cost)
         
@@ -718,6 +719,9 @@ class cashsystem(commands.Cog):
         await interaction.response.defer(thinking=True,ephemeral=True)
 
         user_id = interaction.user.id
+        
+        user_player, _ = await Player.get_or_create(discord_id=user_id)
+        
         if user_id not in self.permit_users:
             if not await self.check_permit(interaction):
                 return
@@ -753,10 +757,8 @@ class cashsystem(commands.Cog):
                 return
 
             permitball = self.permit_users[user_id]
-
+            
         # Incase it got transferred by an admin
-        user_player, _ = await Player.get_or_create(discord_id=user_id)
-        
         if permitball.player_id != user_player.id:
             self.permit_users.pop(user_id, None)
             await log_action(
