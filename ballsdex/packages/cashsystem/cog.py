@@ -439,8 +439,20 @@ class cashsystem(commands.Cog):
         countryball: BallInstanceTransform,
         new_attack_bonus: app_commands.Range[int, -1*settings.max_attack_bonus, settings.max_attack_bonus] | None = None,
         new_health_bonus: app_commands.Range[int, -1*settings.max_health_bonus, settings.max_health_bonus] | None = None,
+        special: SpecialEnabledTransform | None = None,
     ):
-
+        """
+        Parameters
+        ----------
+        countryball: BallInstance
+            The countryball you want to select
+        new_attack_bonus:
+            The new attack bonus you would like to change your countryball to.
+        new_health_bonus:
+            The new health bonus you would like to change your countryball to.
+        special: Special
+            Filter the results of autocompletion to a special event. Ignored afterwards.
+        """
         if interaction.response.is_done():
             return
         
