@@ -46,7 +46,7 @@ highevent = {
     "Testers","Birthday Ball","Eid al-Adha 1445","Realm","Event Farmer",
     "American","Dragon Ball","Aerial Tramway","Birthday 2025",
     "Champion Edition Goku","Champion Edition Vegeta",
-    "International Cat Day 2025 (Larry)"
+    "International Cat Day 2025 (Larry)","Champion Edition Quitela"
 }
 
 lowevent = {
