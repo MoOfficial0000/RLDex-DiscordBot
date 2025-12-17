@@ -543,7 +543,7 @@ class cashsystem(commands.Cog):
             health_change = abs(new_health - old_health)
             if new_health - old_health < 0:
                 healthwarning = "\n⚠️ WARNING: The new health bonus is a **downgrade**. ⚠️"
-            health_cost = int(health_change*statcost)
+            health_cost = health_change*statcost
             if health_cost == 0:
                 health_cost = 1
         else:
@@ -556,7 +556,7 @@ class cashsystem(commands.Cog):
             attack_change = abs(new_attack - old_attack)
             if new_attack - old_attack < 0:
                 attackwarning = "\n⚠️ WARNING: The new attack bonus is a **downgrade**. ⚠️"
-            attack_cost = int(attack_change*statcost)
+            attack_cost = attack_change*statcost
             if attack_cost == 0:
                 attack_cost = 1
         else:
@@ -583,7 +583,7 @@ class cashsystem(commands.Cog):
         if countryball.player_id != user_player.id:
             return await interaction.followup.send("This {settings.collectible_name} doesn't belong to you.")
         await countryball.lock_for_trade()
-        total_cost = (health_cost+attack_cost)
+        total_cost = int(math.ceil(health_cost+attack_cost))
         
         view = ConfirmChoiceView(
             interaction,
