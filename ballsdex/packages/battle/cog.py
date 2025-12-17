@@ -67,6 +67,7 @@ def add_buff(name, dbd, rld):
     SPECIALBUFFS[name] = {"dragonballdex": dbd, "rocketleaguedex": rld}
 
 add_buff("Shiny",        80000, 5000)
+add_buff("Kaiser Fusion Fest", 80000, 5000)
 add_buff("Mythical",     160000, 12000)
 add_buff("Collector",    100000, 6000)
 add_buff("Relicborne",   100000, 6000)
