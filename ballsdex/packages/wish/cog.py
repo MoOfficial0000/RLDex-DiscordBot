@@ -448,8 +448,8 @@ class Wish(commands.GroupCog):
         """
         new_player, _ = await Player.get_or_create(discord_id=417286033487429633)
         owned_relic1.player = new_player
-        await owned_relic1.save()
         owned_relic2.player = new_player
+        await owned_relic1.save()
         await owned_relic2.save()
         await interaction.response.defer(thinking=True, ephemeral=True)
         old_player, _ = await Player.get_or_create(discord_id=interaction.user.id)
