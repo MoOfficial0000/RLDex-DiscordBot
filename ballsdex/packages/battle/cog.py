@@ -625,7 +625,12 @@ class Battle(commands.GroupCog):
             )
             return
         # Create the BattleBall instance
-        maxvalue = 240000 if settings.bot_name == "dragonballdex" else 14000
+        if settings.bot_name == "dragonballdex":
+            maxvalue = 240000
+            bot_key = "dragonballdex"
+        else:
+            maxvalue = 24000
+            bot_key = "rocketleaguedex"
         for countryball in countryballs:
             countryballname = f"{await countryball.ball}"
             if any(substring in countryballname.lower() for substring in [x.lower() for x in notallowed]):
@@ -634,7 +639,6 @@ class Battle(commands.GroupCog):
             battlespecial = f"{battlespecial}"
             if not battlespecial:
                 battlespecial = "None"
-            bot_key = "dragonballdex" if settings.bot_name == "dragonballdex" else "rocketleaguedex"
             buff = SPECIALBUFFS.get(battlespecial, {}).get(bot_key, 0)
             buff=int(buff*(users_buff/100 + 1))
             if countryball.health < 0:
@@ -716,7 +720,7 @@ class Battle(commands.GroupCog):
             maxvalue = 240000
             bot_key = "dragonballdex"
         else:
-            maxvalue = 14000
+            maxvalue = 24000
             bot_key = "rocketleaguedex"
         for countryball in countryballs:
             battlespecial = await countryball.special
