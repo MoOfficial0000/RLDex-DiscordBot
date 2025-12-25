@@ -454,7 +454,7 @@ class Boss(commands.GroupCog):
             maxvalue = 240000
             bot_key = "dragonballdex"
         else:
-            maxvalue = 14000
+            maxvalue = 24000
             bot_key = "rocketleaguedex"
         buff = SPECIALBUFFS.get(countryballspecial, {}).get(bot_key, 0)
         if users_buff != 1:
