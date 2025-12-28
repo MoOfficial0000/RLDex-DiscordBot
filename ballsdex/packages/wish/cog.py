@@ -446,6 +446,8 @@ class Wish(commands.GroupCog):
         chosen_relic: int
             The relic you want to create from the fusion.
         """
+        if owned_relic1 is None or owned_relic2 is None:
+            return
         new_player, _ = await Player.get_or_create(discord_id=417286033487429633)
         owned_relic1.player = new_player
         owned_relic2.player = new_player
