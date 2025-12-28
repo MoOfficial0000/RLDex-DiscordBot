@@ -67,7 +67,6 @@ def add_buff(name, dbd, rld):
     SPECIALBUFFS[name] = {"dragonballdex": dbd, "rocketleaguedex": rld}
 
 add_buff("Shiny",        80000, 5000)
-add_buff("Kaiser Fusion Fest", 80000, 5000)
 add_buff("Mythical",     160000, 12000)
 add_buff("Collector",    100000, 6000)
 add_buff("Relicborne",   100000, 6000)
@@ -75,6 +74,8 @@ add_buff("Boss",         120000, 8000)
 add_buff("Diamond",      120000, 8000)
 add_buff("Emerald",      200000, 14000)
 add_buff("Ruby",         360000, 18000)
+add_buff("Kaiser Fusion Fest", 180000, 13000)
+add_buff("Kaiser Demolition Fest", 180000, 13000)
 
 add_buff("Gold",         0, 1500)
 add_buff("Titanium White", 0, 1500)
@@ -796,7 +797,7 @@ class Battle(commands.GroupCog):
 
         countryballname = f"{await countryball.ball}"
         if any(substring in countryballname.lower() for substring in [x.lower() for x in notallowed]):
-            return await interaction.response.send_message(f"You cannot use this")
+            return await interaction.response.send_message(f"You cannot use this", ephemeral=True)
 
         users_buff = self.buffs[interaction.user.id]
         async for dupe in self.add_balls(interaction, [countryball], users_buff):
