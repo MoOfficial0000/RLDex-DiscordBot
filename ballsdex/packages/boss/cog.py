@@ -43,12 +43,16 @@ if settings.bot_name == "dragonballdex":
 else:
     dropname = "Credits Drop"
 
-LOGCHANNEL = 1321913349125967896
+
 #Change this if you want to a different channel for boss logs
 #e.g.
 #LOGCHANNEL = 1234567890987654321
 
-async def log_action(message: str, bot: BallsDexBot, console_log: bool = False):
+async def log_action(serverid, message: str, bot: BallsDexBot, console_log: bool = False):
+    if serverid == 1209469444196409404: #rldex server
+        LOGCHANNEL = 1321918255274921994 #rldex server boss logs
+    else:
+        LOGCHANNEL = 1321913349125967896 #dbdex server boss logs
     if LOGCHANNEL:
         channel = bot.get_channel(LOGCHANNEL)
         if not channel:
@@ -100,6 +104,7 @@ class JoinButton(View):
             "You have joined the Boss Battle!", ephemeral=True
         )
         await log_action(
+            self.boss_cog.serverid,
             f"{interaction.user} has joined the {self.boss_cog.bossball} Boss Battle.",
             self.boss_cog.bot,
         )
@@ -130,6 +135,7 @@ class Boss(commands.GroupCog):
         self.bosswilda = []
         self.disqualified = []
         self.lasthitter = 0
+        self.serverid = 0
 
     bossadmin = app_commands.Group(name="admin", description="admin commands for boss")
 
@@ -157,6 +163,7 @@ class Boss(commands.GroupCog):
             if disabledperm == False:
                 return await interaction.response.send_message(f"You do not have permission to boss start this {settings.collectible_name}", ephemeral=True)
         await interaction.response.defer(ephemeral=True, thinking=True)
+        self.serverid = interaction.guild.id
         self.bossHP = hp_amount
         def generate_random_name():
             source = string.ascii_uppercase + string.ascii_lowercase + string.ascii_letters
@@ -508,6 +515,7 @@ class Boss(commands.GroupCog):
             messageforuser, ephemeral=True
         )
         await log_action(
+            self.serverid,
             f"-# Round {self.round}\n{interaction.user}'s {messageforuser}\n-# -------",
             self.bot,
         )
@@ -699,6 +707,7 @@ class Boss(commands.GroupCog):
             self.bosswilda = []
             self.disqualified = []
             self.lasthitter = 0
+            self.serverid = 0
             self.buffs.clear()
             return
         if winner != "None":
@@ -721,6 +730,7 @@ class Boss(commands.GroupCog):
             bosswinner_user = await self.bot.fetch_user(int(bosswinner))
 
             await log_action(
+                self.serverid,
                 f"`BOSS REWARDS` gave {settings.collectible_name} {self.bossball.country} to {bosswinner_user}."
                 f"Special=Boss "
                 f"ATK=0 HP=0",
@@ -751,6 +761,7 @@ class Boss(commands.GroupCog):
         self.bosswilda = []
         self.disqualified = []
         self.lasthitter = 0
+        self.serverid = 0
         self.buffs.clear()
 
     @bossadmin.command(name="hackjoin")
@@ -810,6 +821,7 @@ class Boss(commands.GroupCog):
             f"{user} has been hackjoined into the Boss Battle.", ephemeral=True
         )
         await log_action(
+            self.serverid,
             f"{user} has joined the `{self.bossball}` Boss Battle. [hackjoin by {await self.bot.fetch_user(int(interaction.user.id))}]",
             self.bot,
         )
