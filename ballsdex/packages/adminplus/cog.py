@@ -372,6 +372,7 @@ class Adminplus(commands.GroupCog):
         special: SpecialTransform | None = None,
         health_bonus: app_commands.Range[int, -1*settings.max_health_bonus, settings.max_health_bonus] = None,
         attack_bonus: app_commands.Range[int, -1*settings.max_attack_bonus, settings.max_attack_bonus] = None,
+        n: app_commands.Range[int, 1, 100] = 1,
     ):
         """
         Give the specified countryball to a player.
@@ -386,28 +387,75 @@ class Adminplus(commands.GroupCog):
             Omit this to make it random.
         attack_bonus: int | None
             Omit this to make it random.
+        n: int
+            The number of countryballs to give. If no countryball was specified, it's random
+            every time.
         """
-        # the transformers triggered a response, meaning user tried an incorrect input
-        if countryball == None:
-            cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
-            ball = await cog.countryball_cls.get_random(interaction.client)
-            countryball = [x for x in balls.values() if x.country == f"{ball.name}"][0]
-        if countryball.enabled == False:
-            return await interaction.response.send_message(f"You do not have permission to give this {settings.collectible_name}", ephemeral=True)
         paintarray = ["Gold","Titanium White","Black","Cobalt","Crimson","Forest Green","Saffron","Sky Blue","Pink","Purple","Lime","Orange","Grey","Burnt Sienna"]
         if special:
             if not any(role.id in settings.root_role_ids for role in interaction.user.roles):
                 if str(special) not in paintarray:
                     return await interaction.response.send_message("You do not have permission to give this special",ephemeral=True)
-        await adminballs().get_command('give').callback(
-            adminballs(),
-            interaction,
-            countryball,
-            user,
-            special,
-            health_bonus,
-            attack_bonus,
-        )
+        if n == 1:
+            if countryball == None:
+                cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
+                ball = await cog.countryball_cls.get_random(interaction.client)
+                countryball = [x for x in balls.values() if x.country == f"{ball.name}"][0]
+            if countryball.enabled == False:
+                return await interaction.response.send_message(f"You do not have permission to give this {settings.collectible_name}", ephemeral=True)
+            await adminballs().get_command('give').callback(
+                adminballs(),
+                interaction,
+                countryball,
+                user,
+                special,
+                health_bonus,
+                attack_bonus,
+            )
+        else:
+            if not any(role.id in settings.root_role_ids for role in interaction.user.roles):
+                return await interaction.response.send_message(f"You do not have permission to bulk give {settings.plural_collectible_name}",ephemeral=True)
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            player, created = await Player.get_or_create(discord_id=user.id)
+            for i in range(n):
+                if countryball == None:
+                    cog = cast("CountryBallsSpawner | None", interaction.client.get_cog("CountryBallsSpawner"))
+                    ball = await cog.countryball_cls.get_random(interaction.client)
+                    i_countryball = [x for x in balls.values() if x.country == f"{ball.name}"][0]
+                else:
+                    i_countryball = countryball
+                instance = await BallInstance.create(
+                    ball=i_countryball,
+                    player=player,
+                    attack_bonus=(
+                        attack_bonus
+                        if attack_bonus is not None
+                        else random.randint(-settings.max_attack_bonus, settings.max_attack_bonus)
+                    ),
+                    health_bonus=(
+                        health_bonus
+                        if health_bonus is not None
+                        else random.randint(-settings.max_health_bonus, settings.max_health_bonus)
+                    ),
+                    special=special,
+                )
+            attackbonustext = attack_bonus if attack_bonus is not None else "Random"
+            healthbonustext = health_bonus if health_bonus is not None else "Random"
+            await interaction.followup.send(
+                (
+                    f"{n} "
+                    f"{countryball.country if countryball else settings.plural_collectible_name} were successfully given to `{user}`.\n"
+                    f"Special: `{special.name if special else None}`"
+                    f"• ATK:`{attackbonustext}` • HP:`{healthbonustext}` "
+                )
+            )
+            await log_action(
+                f"{interaction.user} gave {n} {countryball.country if countryball else settings.plural_collectible_name} "
+                f"to {user}. "
+                f"(Special={special.name if special else None} "
+                f"• ATK:{attackbonustext} • HP:{healthbonustext})",
+                interaction.client,
+            )
 
     @app_commands.command()
     @app_commands.checks.has_any_role(*settings.root_role_ids)
