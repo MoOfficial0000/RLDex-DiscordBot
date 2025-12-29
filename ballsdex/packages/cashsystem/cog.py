@@ -64,7 +64,7 @@ else:
     CommonRarity = 233
     LimitedReq = 200
     currencyname = "Credits"
-    UPGRADECHANNEL = 1448933419886186608
+    UPGRADECHANNEL = 1455014510439043280
     for i in ZENI_NOTES:
         if i == 1:
             currencycardname = f"1 Credit"
