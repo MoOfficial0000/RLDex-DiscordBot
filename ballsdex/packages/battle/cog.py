@@ -50,7 +50,7 @@ highevent = {
 }
 
 lowevent = {
-    "Lunar New Year 2025","Winter 2024","Summer","Spring Basket 2025",
+    "Lunar Hong Bao 2025","Winter 2024","Summer","Spring Basket 2025",
     "Dark Mist 2024","Goku Day 2025","Eid al-Adha 1446","Autumn 2025",
     "International Cat Day 2025 (Rigby)","Rebirth of RLdex","Winter 2025"
 }
