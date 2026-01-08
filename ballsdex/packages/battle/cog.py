@@ -66,29 +66,29 @@ SPECIALBUFFS = {}
 def add_buff(name, dbd, rld):
     SPECIALBUFFS[name] = {"dragonballdex": dbd, "rocketleaguedex": rld}
 
-add_buff("Shiny",        80000, 5000)
-add_buff("Mythical",     160000, 12000)
-add_buff("Collector",    100000, 6000)
-add_buff("Relicborne",   100000, 6000)
-add_buff("Boss",         120000, 8000)
-add_buff("Diamond",      120000, 8000)
-add_buff("Emerald",      200000, 14000)
-add_buff("Ruby",         360000, 18000)
-add_buff("Kaiser Fusion Fest", 180000, 13000)
-add_buff("Kaiser Demolition Fest", 180000, 13000)
+add_buff("Shiny",        80000, 8000)
+add_buff("Mythical",     160000, 16000)
+add_buff("Collector",    100000, 10000)
+add_buff("Relicborne",   100000, 10000)
+add_buff("Boss",         120000, 12000)
+add_buff("Diamond",      120000, 12000)
+add_buff("Emerald",      200000, 20000)
+add_buff("Ruby",         360000, 36000)
+add_buff("Kaiser Fusion Fest", 180000, 18000)
+add_buff("Kaiser Demolition Fest", 180000, 18000)
 
-add_buff("Gold",         0, 1500)
-add_buff("Titanium White", 0, 1500)
-add_buff("Black",        0, 1250)
+add_buff("Gold",         0, 2500)
+add_buff("Titanium White", 0, 2500)
+add_buff("Black",        0, 2000)
 
 for sp in highevent:
-    add_buff(sp, 50000, 3000)
+    add_buff(sp, 50000, 5000)
 
 for sp in lowevent:
-    add_buff(sp, 30000, 2000)
+    add_buff(sp, 30000, 3000)
 
 for sp in commonpaints:
-    add_buff(sp, 0, 1000)
+    add_buff(sp, 0, 1500)
 
 add_buff("None", 0, 0)
 
