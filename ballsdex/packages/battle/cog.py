@@ -43,14 +43,14 @@ log = logging.getLogger("ballsdex.packages.battle")
 
 battles = []
 highevent = {
-    "Testers","Birthday Ball","Eid al-Adha 1445","Realm","Event Farmer",
+    "Testers","Lunar Hong Bao 2025","Birthday Ball","Eid al-Adha 1445","Realm",
     "American","Dragon Ball","Aerial Tramway","Birthday 2025",
-    "Champion Edition Goku","Champion Edition Vegeta",
+    "Champion Edition Goku","Champion Edition Vegeta","Event Farmer",
     "International Cat Day 2025 (Larry)","Champion Edition Quitela"
 }
 
 lowevent = {
-    "Lunar Hong Bao 2025","Winter 2024","Summer","Spring Basket 2025",
+    "Winter 2024","Summer","Spring Basket 2025",
     "Dark Mist 2024","Goku Day 2025","Eid al-Adha 1446","Autumn 2025",
     "International Cat Day 2025 (Rigby)","Rebirth of RLdex","Winter 2025"
 }
