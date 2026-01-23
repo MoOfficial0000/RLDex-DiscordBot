@@ -75,7 +75,7 @@ def draw_card(
     draw.text(
         (50, 20),
         ball.short_name or ball.country,
-        font=title_font,
+        font = title_font if settings.bot_name != "dragonballdex" else ImageFont.truetype(str(SOURCES_PATH / "Saiyan-Sans dbdexedit.ttf"), 190),
         stroke_width=2,
         stroke_fill=(0, 0, 0, 255),
     )
