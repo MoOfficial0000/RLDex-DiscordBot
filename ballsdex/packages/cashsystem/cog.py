@@ -866,14 +866,13 @@ class cashsystem(commands.Cog):
         await interaction.followup.send("Upgrader embed sent!")
 
     @currencycommands.command(name="admin_give",description=f"Give {currencyname.lower()} to another user (admin).")
+    @app_commands.checks.has_any_role(*settings.root_role_ids)
     async def admin_give(
         self,
         interaction: discord.Interaction,
         user: discord.User,
         n: app_commands.Range[int, 1, 10000]
     ):
-        if interaction.user.id != 417286033487429633:
-            return await interaction.response.send_message(":x:",ephemeral=True)
 
         await interaction.response.defer(thinking=True)
         togiveresult = {}
