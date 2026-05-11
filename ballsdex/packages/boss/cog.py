@@ -13,9 +13,7 @@ from discord.ui import Button, View
 from ballsdex.settings import settings
 from ballsdex.packages.battle.cog import SPECIALBUFFS, checkpermit
 from ballsdex.packages.cashsystem.cog import notallowed
-from ballsdex.core.utils.transformers import BallInstanceTransform, SpecialEnabledTransform
-from ballsdex.core.utils.transformers import BallEnabledTransform
-from ballsdex.core.utils.transformers import SpecialTransform, BallTransform
+from ballsdex.core.utils.transformers import BallInstanceTransform, SpecialEnabledTransform, BallEnabledTransform, SpecialTransform, BallTransform
 from ballsdex.core.utils.paginator import FieldPageSource, Pages
 from ballsdex.core.bot import BallsDexBot
 
@@ -144,7 +142,7 @@ class Boss(commands.GroupCog):
     async def start(
         self,
         interaction: discord.Interaction,
-        countryball: BallTransform,
+        countryball: BallEnabledTransform,
         hp_amount: int,
         start_image: discord.Attachment | None = None,
         defend_image: discord.Attachment | None = None,
