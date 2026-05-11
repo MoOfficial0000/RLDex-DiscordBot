@@ -44,13 +44,13 @@ log = logging.getLogger("ballsdex.packages.battle")
 battles = []
 highevent = {
     "Testers","Lunar Hong Bao 2025","Birthday Ball","Eid al-Adha 1445","Realm",
-    "American","Dragon Ball","Aerial Tramway","Birthday 2025",
-    "Champion Edition Goku","Champion Edition Vegeta","Event Farmer",
-    "International Cat Day 2025 (Larry)","Champion Edition Quitela"
+    "American","Dragon Ball","Aerial Tramway","Birthday 2025","Eid al-Fitr 1447",
+    "Champion Edition Goku","Champion Edition Vegeta","Event Farmer","Birthday 2026"
+    "International Cat Day 2025 (Larry)","Champion Edition Quitela","Goku Day 2026"
 }
 
 lowevent = {
-    "Winter 2024","Summer","Spring Basket 2025",
+    "Winter 2024","Summer","Spring Basket 2025","Ramadan 1447","April Fools 2026",
     "Dark Mist 2024","Goku Day 2025","Eid al-Adha 1446","Autumn 2025",
     "International Cat Day 2025 (Rigby)","Rebirth of RLdex","Winter 2025"
 }
@@ -75,6 +75,7 @@ add_buff("Diamond",      120000, 12000)
 add_buff("Emerald",      200000, 20000)
 add_buff("Ruby",         360000, 36000)
 add_buff("Kaiser Fusion Fest", 180000, 18000)
+add_buff("Jujutsu Zenkai Fest", 180000, 18000)
 add_buff("Kaiser Demolition Fest", 180000, 18000)
 
 add_buff("Gold",         0, 2500)
