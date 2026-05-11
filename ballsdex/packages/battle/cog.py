@@ -45,7 +45,7 @@ battles = []
 highevent = {
     "Testers","Lunar Hong Bao 2025","Birthday Ball","Eid al-Adha 1445","Realm",
     "American","Dragon Ball","Aerial Tramway","Birthday 2025","Eid al-Fitr 1447",
-    "Champion Edition Goku","Champion Edition Vegeta","Event Farmer","Birthday 2026"
+    "Champion Edition Goku","Champion Edition Vegeta","Event Farmer","Birthday 2026",
     "International Cat Day 2025 (Larry)","Champion Edition Quitela","Goku Day 2026"
 }
 
