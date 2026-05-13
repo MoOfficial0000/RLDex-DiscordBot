@@ -623,7 +623,7 @@ class extraPacks(commands.Cog):
             recievedtext = ""
             if settings.bot_name == "dragonballdex":
                 for i in range(3):
-                    relicorzeni = "Zeni Drop" if random.random() < 0.80 else "Relic Drop"
+                    relicorzeni = "Zeni Drop" if random.random() < 0.85 else "Relic Drop"
                     ball = [x for x in balls.values() if x.country == relicorzeni][0]
                     instance = await BallInstance.create(
                         ball=ball,
